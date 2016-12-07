@@ -26,6 +26,7 @@ import os
 
 from gramps.gen.db import META, PERSON_TBL
 from  gramps.gen.db.dbconst import BDBVERSFN
+from gramps.gen.db.generic import LOG
 
 def get_dbdir_summary(dirpath, name):
     """

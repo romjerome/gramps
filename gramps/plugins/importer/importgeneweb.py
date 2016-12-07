@@ -1155,5 +1155,4 @@ class GeneWebParser:
         return( s)
 
     def debug( self, txt):
-        if enable_debug:
-            print(txt)
+        LOG.debug(txt)

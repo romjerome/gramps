@@ -676,6 +676,7 @@ class LaTeXDoc(BaseDoc, TextDoc):
         if tab_state == CELL_BEG:
             # here text is head
             self.textmem = []
+            self.tabrow = TabRow()
             self.curcol_char = get_charform(self.curcol-1)
             if span > 1: # phantom columns prior to multicolumns
                 for col in range(self.curcol - span, self.curcol - 1):
@@ -703,6 +704,7 @@ class LaTeXDoc(BaseDoc, TextDoc):
             if self.in_multrow_cell: #   cols of rows: convert to rows of cols
                 self.repack_row()
             else:
+                self.tabmem = TabMem(text)
                 self.tabmem.rows.append(self.tabrow)
         elif tab_state == TAB_BEG: # text: \\begin{longtable}[l]{
             self._backend.write(''.join(('\\grinittab{\\textwidth}{',

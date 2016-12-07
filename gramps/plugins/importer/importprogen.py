@@ -52,7 +52,7 @@ from gramps.gui.utils import ProgressMeter
 from gramps.gen.lib import (Attribute, AttributeType, ChildRef, Date, Event,
                             EventRef, EventType, Family, FamilyRelType, Name,
                             NameType, Note, NoteType, Person, Place, Source,
-                            Surname, Citation, Location, NameOriginType)
+                            SrcAttribute, Surname, Citation, Location, NameOriginType)
 from gramps.gen.db import DbTxn
 from gramps.gen.utils.libformatting import ImportInfo
 
@@ -1031,6 +1031,7 @@ class ProgenParser:
                     loc.set_postal_code(postal)
                     loc.set_country(country)
                     loc.set_phone(telno)
+                    # TO_FIX
                     place.set_main_location(loc)
                     self.db.commit_place(place, self.trans)
                     desc = info or None

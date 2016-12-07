@@ -17,6 +17,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
+import os
 
 ## This file is copied from gramps/plugins/db/dbapi/settings.py
 ## into each grampsdb/*/ directory. You can edit each copy
@@ -27,6 +28,7 @@
 # NOTE: config is predefined
 
 # NOTE: you can override this in settings.ini or here:
+#from gramps.gen.config import config
 dbtype = config.get('database.dbtype')
 
 if dbtype == "sqlite":
