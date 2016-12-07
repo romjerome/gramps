@@ -72,7 +72,6 @@ from . import (DbBsddbRead, DbWriteBase, BSDDBTxn,
 
 from gramps.gen.db import exceptions
 from gramps.gen.db.dbconst import *
-from gramps.gen.db.exceptions import DbException
 from gramps.gen.utils.callback import Callback
 from gramps.gen.utils.id import create_id
 from gramps.gen.updatecallback import UpdateCallback
@@ -2478,7 +2477,7 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
         try:
             do_export(self)
         except (OSError, IOError) as msg:
-            raise DbException(str(msg))
+            raise exceptions.DbException(str(msg))
 
     def restore(self):
         """

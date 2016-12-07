@@ -676,7 +676,6 @@ class LaTeXDoc(BaseDoc, TextDoc):
         if tab_state == CELL_BEG:
             # here text is head
             self.textmem = []
-            self.tabrow = TabRow()
             self.curcol_char = get_charform(self.curcol-1)
             if span > 1: # phantom columns prior to multicolumns
                 for col in range(self.curcol - span, self.curcol - 1):
