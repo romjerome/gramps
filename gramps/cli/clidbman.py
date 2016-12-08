@@ -358,13 +358,14 @@ class CLIDbManager:
                     temp_fp.write(data)
                     url_fp.close()
                     from  gramps.gen.db.dbconst import BDBVERSFN
+                    (name, ext) = os.path.splitext(os.path.basename(filename))
                     versionpath = os.path.join(name, BDBVERSFN)
+                    dbase = make_database("bsddb")
                     _LOG.debug("Write bsddb version %s", str(dbase.version()))
                     with open(versionpath, "w") as version_file:
                         version_file.write(str(dbase.version()))
                     temp_fp.close()
 
-        (name, ext) = os.path.splitext(os.path.basename(filename))
         format = ext[1:].lower()
 
         for plugin in pmgr.get_import_plugins():
