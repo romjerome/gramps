@@ -366,6 +366,7 @@ class CLIDbManager:
                         version_file.write(str(dbase.version()))
                     temp_fp.close()
 
+        (name, ext) = os.path.splitext(os.path.basename(filename))
         format = ext[1:].lower()
 
         for plugin in pmgr.get_import_plugins():
