@@ -1031,7 +1031,7 @@ class ProgenParser:
                     loc.set_postal_code(postal)
                     loc.set_country(country)
                     loc.set_phone(telno)
-                    # TO_FIX
+                    # FIXME
                     place.set_main_location(loc)
                     self.db.commit_place(place, self.trans)
                     desc = info or None
