@@ -139,6 +139,15 @@ class EditEventRef(EditReference):
             self.source.get_gramps_id,
             self.db.readonly)
 
+        self.tags = MonitoredTagList(
+            self.top.get_object("tag_label"),
+            self.top.get_object("tag_button"),
+            self.source.set_tag_list,
+            self.source.get_tag_list,
+            self.db,
+            self.uistate, self.track,
+            self.db.readonly)
+
         self.place_field = PlaceEntry(
             self.dbstate,
             self.uistate,
