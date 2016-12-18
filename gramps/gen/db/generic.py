@@ -556,12 +556,6 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
         """
         If update is False: then don't update any files
         """
-        db_python_version = self.get_python_version(directory)
-        current_python_version = sys.version_info[0]
-        if db_python_version != current_python_version:
-            raise exceptions.DbPythonError(str(db_python_version),
-                                           str(current_python_version),
-                                           str(current_python_version))
         db_schema_version = self.get_schema_version(directory)
         current_schema_version = self.VERSION[0]
         if db_schema_version != current_schema_version:
@@ -646,8 +640,6 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
         """
         if self._directory:
             if update:
-                if config.get('database.autobackup'):
-                    self.autobackup(user)
                 # This is just a dummy file to indicate last modified time of
                 # the database for gramps.cli.clidbman:
                 filename = os.path.join(self._directory, "meta_data.db")
@@ -738,29 +730,6 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
     def version_supported(self):
         """Return True when the file has a supported version."""
         return True
-
-    def get_version(self):
-        """
-        Return the version number of the schema.
-        """
-        if self._directory:
-            filepath = os.path.join(self._directory, "bdbversion.txt")
-            try:
-                with open(filepath, "r", encoding='utf-8') as name_file:
-                    version = name_file.readline().strip()
-            except (OSError, IOError) as msg:
-                LOG.error(str(msg))
-                version = "(0, 0, 0)"
-            return ast.literal_eval(version)
-        else:
-            return (0, 0, 0)
-
-    def get_python_version(self, directory=None):
-        """
-        Get the version of python that the database was created
-        under. Assumes 3, if not found.
-        """
-        raise NotImplementedError
 
     def get_schema_version(self, directory=None):
         """
@@ -2576,20 +2545,6 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
     def redo(self, update_history=True):
         return self.undodb.redo(update_history)
 
-    def backup(self, user=None):
-        """
-        If you wish to support an optional backup routine, put it here.
-        """
-        from gramps.plugins.export.exportxml import XmlWriter
-        from gramps.cli.user import User
-        if user is None:
-            user = User()
-        compress = config.get('database.compress-backup')
-        writer = XmlWriter(self, user, strip_photos=0, compress=compress)
-        timestamp = '{0:%Y-%m-%d-%H-%M-%S}'.format(datetime.datetime.now())
-        filename = os.path.join(self._directory, "backup-%s.gramps" % timestamp)
-        writer.write(filename)
-
     def get_summary(self):
         """
         Returns dictionary of summary item.
@@ -2599,17 +2554,6 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
         _("Version")
         _("Data version")
         """
-        last_backup = "n/a"
-        backups = sorted(glob.glob(os.path.join(
-            self._directory, "backup-*.gramps")), reverse=True)
-        if backups:
-            path, filename = os.path.split(backups[0])
-            filename, ext = os.path.splitext(filename)
-            if filename.count("-") == 6:
-                backup, year, month, day, hour, minute, second = filename.split("-")
-                last_backup = time.strftime('%x %X', time.localtime(time.mktime(
-                    (int(year), int(month), int(day), int(hour), int(minute), int(second),
-                     0, 0, 0))))
         return {
             _("Number of people"): self.get_number_of_people(),
             _("Number of families"): self.get_number_of_families(),
@@ -2622,8 +2566,6 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
             _("Number of notes"): self.get_number_of_notes(),
             _("Number of tags"): self.get_number_of_tags(),
             _("Data version"): ".".join([str(v) for v in self.VERSION]),
-            _("Backups, count"): str(len(backups)),
-            _("Backups, last"): last_backup,
         }
 
     def _order_by_person_key(self, person):
