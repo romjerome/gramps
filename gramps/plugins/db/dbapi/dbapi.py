@@ -57,41 +57,6 @@ class DBAPI(DbGeneric):
     """
     Database backends class for DB-API 2.0 databases
     """
-    @classmethod
-    def get_class_summary(cls):
-        """
-        Return a diction of information about this database.
-        """
-        summary = {
-            "DB-API version": "2.0",
-            "Database type": cls.__name__,
-        }
-        return summary
-
-    def restore(self):
-        """
-        If you wish to support an optional restore routine, put it here.
-        """
-        pass
-
-    def get_python_version(self, directory=None):
-        """
-        Get the version of python that the database was created
-        under. Assumes 3, if not found.
-        """
-        if directory is None:
-            directory = self._directory
-        version = 3
-        if directory:
-            versionpath = os.path.join(directory, "pythonversion.txt")
-            if os.path.exists(versionpath):
-                with open(versionpath, "r") as version_file:
-                    version = version_file.read()
-                version = int(version)
-            else:
-                LOG.info("Missing '%s'. Assuming version 3.", versionpath)
-        return version
-
     def get_schema_version(self, directory=None):
         """
         Get the version of the schema that the database was created
@@ -112,21 +77,6 @@ class DBAPI(DbGeneric):
 
     def write_version(self, directory):
         """Write files for a newly created DB."""
-        versionpath = os.path.join(directory, "bdbversion.txt")
-        _LOG.debug("Write bsddb version %s", str(self.VERSION))
-        with open(versionpath, "w") as version_file:
-            version_file.write(str(self.VERSION))
-
-        versionpath = os.path.join(directory, "pythonversion.txt")
-        _LOG.debug("Write python version file to %s", str(sys.version_info[0]))
-        with open(versionpath, "w") as version_file:
-            version_file.write(str(sys.version_info[0]))
-
-        versionpath = os.path.join(directory, "pickleupgrade.txt")
-        _LOG.debug("Write pickle version file to %s", "Yes")
-        with open(versionpath, "w") as version_file:
-            version_file.write("YES")
-
         _LOG.debug("Write schema version file to %s", str(self.VERSION[0]))
         versionpath = os.path.join(directory, "schemaversion.txt")
         with open(versionpath, "w") as version_file:
@@ -172,9 +122,9 @@ class DBAPI(DbGeneric):
         # We use the existence of the person table as a proxy for the database
         # being new
         if not self.dbapi.table_exists("person"):
-            self.update_schema()
+            self._create_schema()
 
-    def update_schema(self):
+    def _create_schema(self):
         """
         Create and update schema.
         """
@@ -269,7 +219,7 @@ class DBAPI(DbGeneric):
                            'unknown INTEGER'
                            ')')
 
-        self.rebuild_secondary_fields()
+        self._create_secondary_columns()
 
         ## Indices:
         self.dbapi.execute('CREATE INDEX person_gramps_id '
@@ -666,9 +616,9 @@ class DBAPI(DbGeneric):
             self.dbapi.execute(sql,
                                [obj.handle,
                                 pickle.dumps(obj.serialize())])
-        self.update_secondary_values(obj)
+        self._update_secondary_values(obj)
         if not trans.batch:
-            self.update_backlinks(obj, trans)
+            self._update_backlinks(obj, trans)
             if old_data:
                 trans.add(obj_key, TXNUPD, obj.handle,
                           old_data,
@@ -680,7 +630,7 @@ class DBAPI(DbGeneric):
 
         return old_data
 
-    def update_backlinks(self, obj, transaction):
+    def _update_backlinks(self, obj, transaction):
 
         # Find existing references
         sql = ("SELECT ref_class, ref_handle " +
@@ -861,7 +811,7 @@ class DBAPI(DbGeneric):
         Rebuild secondary indices
         """
         # First, expand blob to individual fields:
-        self.rebuild_secondary_fields()
+        self._update_secondary_values()
         # Next, rebuild stats:
         gstats = self.get_gender_stats()
         self.genderStats = GenderStats(gstats)
@@ -955,33 +905,16 @@ class DBAPI(DbGeneric):
         else:
             return "BLOB"
 
-    def rebuild_secondary_fields(self):
+    def _create_secondary_columns(self):
         """
-        Add secondary fields, update, and create indexes.
+        Create secondary columns.
         """
-        LOG.info("Rebuilding secondary fields...")
+        LOG.info("Creating secondary columns...")
         for table in self.get_table_func():
             if not hasattr(self.get_table_func(table, "class_func"),
                            "get_secondary_fields"):
                 continue
-            # do a select on all; if it works, then it is ok;
-            # else, check them all
             table_name = table.lower()
-            try:
-                fields = [self._hash_name(table, field)
-                          for (field, ptype)
-                          in self.get_table_func(
-                              table, "class_func").get_secondary_fields()]
-                if fields:
-                    self.dbapi.execute("select %s from %s limit 1"
-                                       % (", ".join(fields), table_name))
-                # if no error, continue
-                LOG.info("Table %s is up to date", table)
-                continue
-            except:
-                pass # got to add missing ones, so continue
-            LOG.info("Table %s needs rebuilding...", table)
-            altered = False
             for field_pair in self.get_table_func(
                     table, "class_func").get_secondary_fields():
                 field, python_type = field_pair
@@ -999,55 +932,8 @@ class DBAPI(DbGeneric):
                              table, field)
                     self.dbapi.execute("ALTER TABLE %s ADD COLUMN %s %s"
                                        % (table_name, field, sql_type))
-                    altered = True
-            if altered:
-                LOG.info("Table %s is being committed, "
-                         "rebuilt, and indexed...", table)
-                self.update_secondary_values_table(table)
-                self.create_secondary_indexes_table(table)
 
-    def create_secondary_indexes(self):
-        """
-        Create the indexes for the secondary fields.
-        """
-        for table in self.get_table_func():
-            if not hasattr(self.get_table_func(table, "class_func"),
-                           "get_index_fields"):
-                continue
-            self.create_secondary_indexes_table(table)
-
-    def create_secondary_indexes_table(self, table):
-        """
-        Create secondary indexes for just this table.
-        """
-        table_name = table.lower()
-        for field in self.get_table_func(
-                table, "class_func").get_index_fields():
-            field = self._hash_name(table, field)
-            self.dbapi.execute("CREATE INDEX %s_%s ON %s(%s)"
-                                   % (table, field, table_name, field))
-
-    def update_secondary_values_all(self):
-        """
-        Go through all items in all tables, and update their secondary
-        field values.
-        """
-        for table in self.get_table_func():
-            self.update_secondary_values_table(table)
-
-    def update_secondary_values_table(self, table):
-        """
-        Go through all items in a table, and update their secondary
-        field values.
-        table - "Person", "Place", "Media", etc.
-        """
-        if not hasattr(self.get_table_func(table, "class_func"),
-                       "get_secondary_fields"):
-            return
-        for item in self.get_table_func(table, "iter_func")():
-            self.update_secondary_values(item)
-
-    def update_secondary_values(self, obj):
+    def _update_secondary_values(self, obj):
         """
         Given a primary object update its secondary field values
         in the database.
@@ -1089,19 +975,6 @@ class DBAPI(DbGeneric):
         in the appropriate type.
         """
         return [v if not isinstance(v, bool) else int(v) for v in values]
-
-    def _sql_repr(self, value):
-        """
-        Given a Python value, turn it into a SQL value.
-        """
-        if value is True:
-            return "1"
-        elif value is False:
-            return "0"
-        elif isinstance(value, list):
-            return repr(tuple(value))
-        else:
-            return repr(value)
 
     def get_summary(self):
         """
