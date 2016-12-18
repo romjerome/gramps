@@ -40,7 +40,7 @@ from ..glade import Glade
 from .displaytabs import (CitationEmbedList, NoteTab, GalleryTab,
                          EventBackRefList, AttrEmbedList)
 from ..widgets import (PrivacyButton, MonitoredEntry,
-                     MonitoredDate, MonitoredDataType)
+                     MonitoredDate, MonitoredDataType, MonitoredTagList)
 from .editreference import RefTab, EditReference
 
 from .objectentries import PlaceEntry
