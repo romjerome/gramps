@@ -32,6 +32,18 @@ import re
 import time
 from gi.repository import GLib
 
+try:
+    from gi.repository import GeocodeGlib
+    geoglib = True
+except:
+    geoglib = False
+
+try:
+    import geopy.geocoders
+    geopy = True
+except:
+    geopy = False
+
 #-------------------------------------------------------------------------
 #
 # GTK/Gnome modules
@@ -1032,6 +1044,41 @@ class GeoGraphyView(OsmGps, NavigationView):
                         pass
         kml.destroy()
 
+    def get_external_name (self, lat, lon):
+        self.uistate.set_busy_cursor(True)
+        if geoglib:
+            #print("\nGeogode-glib.")
+            try:
+                loc = GeocodeGlib.Location.new(lat, lon, 0);
+                geo_object = GeocodeGlib.Reverse.new_for_location (loc);
+                result = GeocodeGlib.Reverse.resolve(geo_object)
+                if result.get_town() != None:
+                    self.uistate.set_busy_cursor(False)
+                    return str(result.get_town())
+            except:
+                self.uistate.set_busy_cursor(False)
+                return None
+            #loc = result.get_location()
+            #print(result.get_town(), loc.get_latitude(), loc.get_longitude())
+            #print(result.get_town(), "continent = ", result.get_continent())
+            #print(result.get_town(), "area = ", result.get_area())
+            #print(result.get_town(), "administrative area = ", result.get_administrative_area())
+            #print(result.get_town(), "building = ", result.get_building())
+            #print(result.get_town(), "country = ", result.get_country())
+            #print(result.get_town(), "country code = ", result.get_country_code())
+            #print(result.get_town(), "county = ", result.get_county())
+            #print(result.get_town(), "icon = ", result.get_icon())
+            #print(result.get_town(), "name = ", result.get_name())
+            #print(result.get_town(), "place type = ", result.get_place_type())
+            #print(result.get_town(), "street = ", result.get_street())
+            #print(result.get_town(), "street address = ", result.get_street_address())
+        #elif geopy:
+            #geolocator = geopy.geocoders.GoogleV3()
+            #location = geolocator.reverse("%s, %s" % (str(lat), str(lon)))
+            #print("\nGeopy : ")
+            #print(location)
+        self.uistate.set_busy_cursor(False)
+
     def link_place(self, menu, event, lat, lon):
         """
         Link an existing place using longitude and latitude of location centered
@@ -1096,8 +1143,12 @@ class GeoGraphyView(OsmGps, NavigationView):
         Add a new place using longitude and latitude of location centered
         on the map
         """
+        proposal = self.get_external_name(plat, plon)
         self.select_fct.close()
         new_place = Place()
+        place_name = PlaceName()
+        place_name.set_value(proposal)
+        new_place.set_name(place_name)
         new_place.set_latitude(str(plat))
         new_place.set_longitude(str(plon))
         if parent:
