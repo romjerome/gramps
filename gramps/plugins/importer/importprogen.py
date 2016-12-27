@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
 "Import from Pro-Gen"
@@ -58,6 +58,7 @@ from gramps.gen.lib import (Address, Attribute, AttributeType, ChildRef, Citatio
                             Place, PlaceName, Source, SrcAttribute, Surname, Tag)
 from gramps.gen.utils.id import create_id
 from gramps.gui.utils import ProgressMeter
+from gramps.gen.utils.libformatting import ImportInfo
 
 class ProgenError(Exception):
     """
@@ -88,6 +89,7 @@ def _importData(database, filename, user):
     except IOError as msg:
         user.notify_error(_("%s could not be opened") % filename, str(msg))
         return
+    return ImportInfo({_("Results"): _("done")})
 
 def _find_from_handle(progen_id, table):
     """
