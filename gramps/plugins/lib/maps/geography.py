@@ -1057,7 +1057,7 @@ class GeoGraphyView(OsmGps, NavigationView):
                     return str(result.get_town())
             except:
                 self.uistate.set_busy_cursor(False)
-                return None
+                return "not found"
             #loc = result.get_location()
             #print(result.get_town(), loc.get_latitude(), loc.get_longitude())
             #print(result.get_town(), "continent = ", result.get_continent())
