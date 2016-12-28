@@ -80,7 +80,10 @@ class PlaceDisplay:
             if config.get('preferences.place-reverse'):
                 names.reverse()
 
-            return ", ".join(names)
+            if names == [None]:
+                return "no_name"
+            else:
+                return ", ".join(names)
 
 def _find_populated_place(places):
     populated_place = None
