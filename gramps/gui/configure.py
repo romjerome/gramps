@@ -1167,8 +1167,6 @@ class GrampsPreferences(ConfigureDialog):
                  row,
                  'preferences.place-name-column',
                  start=0)
-
-        self.place_widgets.append(pnbox)
         row += 1
 
         return _('Places'), grid
