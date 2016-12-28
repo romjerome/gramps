@@ -1161,6 +1161,16 @@ class GrampsPreferences(ConfigureDialog):
 
         self.auto_title_changed(auto)
 
+        pnbox = self.add_checkbox(
+                 grid,
+                 _("Display alternate place names on place view and selector"),
+                 row,
+                 'preferences.place-name-column',
+                 start=0)
+
+        self.place_widgets.append(pnbox)
+        row += 1
+
         return _('Places'), grid
 
     def auto_title_changed(self, obj):
