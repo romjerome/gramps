@@ -1147,7 +1147,7 @@ class GeoGraphyView(OsmGps, NavigationView):
         self.select_fct.close()
         new_place = Place()
         place_name = PlaceName()
-        place_name.set_value(proposal)
+        place_name.set_value(str(proposal))
         new_place.set_name(place_name)
         new_place.set_latitude(str(plat))
         new_place.set_longitude(str(plon))
@@ -1168,7 +1168,7 @@ class GeoGraphyView(OsmGps, NavigationView):
         try:
             EditPlace(self.dbstate, self.uistate, [], new_place)
             self.add_marker(None, None, plat, plon, None, True, 0)
-        except (WindowActiveError, TypeError):
+        except WindowActiveError:
             pass
 
     def __edit_place(self, parent, plat, plon):
