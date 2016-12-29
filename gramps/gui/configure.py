@@ -1161,14 +1161,6 @@ class GrampsPreferences(ConfigureDialog):
 
         self.auto_title_changed(auto)
 
-        pnbox = self.add_checkbox(
-                 grid,
-                 _("Display alternate place names on place view and selector"),
-                 row,
-                 'preferences.place-name-column',
-                 start=0)
-        row += 1
-
         grid3 = Gtk.Grid()
         grid3.set_border_width(12)
         grid3.set_column_spacing(6)
