@@ -55,6 +55,7 @@ from gramps.gen.display.name import displayer as _nd
 from gramps.gen.display.place import displayer as _pd
 from gramps.gen.utils.place import conv_lat_lon
 from gramps.gui.views.bookmarks import FamilyBookmarks
+from gramps.plugins.lib.maps import constants
 from gramps.plugins.lib.maps.geography import GeoGraphyView
 
 #-------------------------------------------------------------------------
