@@ -112,7 +112,19 @@ class GeoEvents(GeoGraphyView):
     The view used to render events map.
     """
     CONFIGSETTINGS = (
-        ('geography.use-tracker', False),
+        ('geography.path', GEOGRAPHY_PATH),
+
+        ('geography.zoom', 10),
+        ('geography.zoom_when_center', 12),
+        ('geography.show_cross', True),
+        ('geography.lock', False),
+        ('geography.center-lat', 0.0),
+        ('geography.center-lon', 0.0),
+
+        ('geography.map_service', constants.OPENSTREETMAP),
+        ('geography.max_places', 5000),
+        ('geography.use-keypad', True),
+        ('geography.use-traker', False),
         )
 
     def __init__(self, pdata, dbstate, uistate, nav_group=0):
