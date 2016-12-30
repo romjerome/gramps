@@ -1292,9 +1292,6 @@ class GeoGraphyView(OsmGps, NavigationView):
                   'or we use the characters from the keyboard.'),
                 5, 'geography.use-keypad',
                 extra_callback=self.update_shortcuts)
-        configdialog.add_checkbox(grid,
-                _('Enable external geocoding :'),
-                6, 'geography.use-tracker').set_sensitive(False)
         return _('The map'), grid
 
     def set_tilepath(self, *obj):
