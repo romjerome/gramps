@@ -84,8 +84,7 @@ class PlaceDisplay:
                 names.reverse()
 
             user_choice_number = config.get('preferences.place-separator')
-            entries = SEPARATORS
-            return entries[user_choice_number].join(names)
+            return SEPARATORS[user_choice_number].join(names)
 
 def _find_populated_place(places):
     populated_place = None

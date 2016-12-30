@@ -1179,8 +1179,7 @@ class GrampsPreferences(ConfigureDialog):
                        #'preferences.place-separator')
 
         sepbox = Gtk.ComboBoxText()
-        entries = SEPARATORS
-        list(map(sepbox.append_text, entries))
+        list(map(sepbox.append_text, SEPARATORS))
         active = config.get('preferences.place-separator')
         if active >= len(entries):
             active = 0
