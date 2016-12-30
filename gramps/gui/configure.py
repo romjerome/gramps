@@ -1129,7 +1129,7 @@ class GrampsPreferences(ConfigureDialog):
         grid.attach(grid2, 1, 1, 1, 1)
 
         self.place_widgets = []
-        cbox = self.add_checkbox(grid2, _("Suppress comma after house number"),
+        cbox = self.add_checkbox(grid2, _("Suppress separator after house number"),
                                  row, 'preferences.place-number', start=0)
         self.place_widgets.append(cbox)
         row += 1
