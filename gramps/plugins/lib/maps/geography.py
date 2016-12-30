@@ -1047,7 +1047,7 @@ class GeoGraphyView(OsmGps, NavigationView):
 
     def get_external_name (self, lat, lon):
         self.uistate.set_busy_cursor(True)
-        if geoglib and config.get('geography.use-tracker'):
+        if geoglib and constants.track:
             #print("\nGeocode-glib.")
             try:
                 loc = GeocodeGlib.Location.new(lat, lon, 0);
