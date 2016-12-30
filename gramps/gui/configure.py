@@ -49,7 +49,7 @@ from gi.repository import Pango
 #-------------------------------------------------------------------------
 from gramps.gen.config import config
 from gramps.gen.const import GRAMPS_LOCALE as glocale
-from gramps.gen.const import HOME_DIR, URL_WIKISTRING
+from gramps.gen.const import HOME_DIR, URL_WIKISTRING, SEPARATORS
 from gramps.gen.datehandler import get_date_formats
 from gramps.gen.display.name import displayer as _nd
 from gramps.gen.display.name import NameDisplayError
@@ -1179,7 +1179,7 @@ class GrampsPreferences(ConfigureDialog):
                        #'preferences.place-separator')
 
         sepbox = Gtk.ComboBoxText()
-        entries = [_(", "), _("|"), _("/")]
+        entries = SEPARATORS
         list(map(sepbox.append_text, entries))
         active = config.get('preferences.place-separator')
         if active >= len(entries):
