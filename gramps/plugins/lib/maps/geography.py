@@ -1047,7 +1047,7 @@ class GeoGraphyView(OsmGps, NavigationView):
     def get_external_name (self, lat, lon):
         self.uistate.set_busy_cursor(True)
         if geoglib:
-            #print("\nGeogode-glib.")
+            #print("\nGeocode-glib.")
             try:
                 loc = GeocodeGlib.Location.new(lat, lon, 0);
                 geo_object = GeocodeGlib.Reverse.new_for_location (loc);
@@ -1055,6 +1055,8 @@ class GeoGraphyView(OsmGps, NavigationView):
                 if result.get_town() != None:
                     self.uistate.set_busy_cursor(False)
                     return str(result.get_town())
+                else: # sometimes Geocode-glib returns None
+                    return
             except:
                 self.uistate.set_busy_cursor(False)
                 return "not found"
