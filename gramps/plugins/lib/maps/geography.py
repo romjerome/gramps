@@ -138,7 +138,7 @@ class GeoGraphyView(OsmGps, NavigationView):
         ('geography.map_service', constants.OPENSTREETMAP),
         ('geography.max_places', 5000),
         ('geography.use-keypad', True),
-        ('geography.use-traker', False),
+        ('geography.use-traker', constants.track),
         )
 
     def __init__(self, title, pdata, dbstate, uistate,

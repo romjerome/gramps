@@ -126,7 +126,7 @@ class GeoPlaces(GeoGraphyView):
         ('geography.map_service', constants.OPENSTREETMAP),
         ('geography.max_places', 5000),
         ('geography.use-keypad', True),
-        ('geography.use-tracker', False),
+        ('geography.use-tracker', constants.track),
 
         # specific to geoplaces :
 
