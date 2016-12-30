@@ -1056,6 +1056,7 @@ class GeoGraphyView(OsmGps, NavigationView):
                     self.uistate.set_busy_cursor(False)
                     return str(result.get_town())
                 else: # sometimes Geocode-glib returns None
+                    self.uistate.set_busy_cursor(False)
                     return
             except:
                 self.uistate.set_busy_cursor(False)
