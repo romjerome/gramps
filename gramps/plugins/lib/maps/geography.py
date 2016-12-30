@@ -138,6 +138,7 @@ class GeoGraphyView(OsmGps, NavigationView):
         ('geography.map_service', constants.OPENSTREETMAP),
         ('geography.max_places', 5000),
         ('geography.use-keypad', True),
+        ('geography.use-traker', False),
         )
 
     def __init__(self, title, pdata, dbstate, uistate,
@@ -1046,7 +1047,7 @@ class GeoGraphyView(OsmGps, NavigationView):
 
     def get_external_name (self, lat, lon):
         self.uistate.set_busy_cursor(True)
-        if geoglib:
+        if geoglib and config.get('geography.use-tracker'):
             #print("\nGeocode-glib.")
             try:
                 loc = GeocodeGlib.Location.new(lat, lon, 0);
@@ -1291,6 +1292,9 @@ class GeoGraphyView(OsmGps, NavigationView):
                   'or we use the characters from the keyboard.'),
                 5, 'geography.use-keypad',
                 extra_callback=self.update_shortcuts)
+        configdialog.add_checkbox(grid,
+                _('Enable external geocoding :'),
+                6, 'geography.use-tracker')
         return _('The map'), grid
 
     def set_tilepath(self, *obj):
