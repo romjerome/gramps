@@ -112,7 +112,7 @@ class GeoFamily(GeoGraphyView):
     The view used to render family map.
     """
     CONFIGSETTINGS = (
-        ('geography.path', GEOGRAPHY_PATH),
+        ('geography.path', constants.GEOGRAPHY_PATH),
 
         ('geography.zoom', 10),
         ('geography.zoom_when_center', 12),

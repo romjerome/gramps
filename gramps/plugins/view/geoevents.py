@@ -113,7 +113,7 @@ class GeoEvents(GeoGraphyView):
     The view used to render events map.
     """
     CONFIGSETTINGS = (
-        ('geography.path', GEOGRAPHY_PATH),
+        ('geography.path', constants.GEOGRAPHY_PATH),
 
         ('geography.zoom', 10),
         ('geography.zoom_when_center', 12),
