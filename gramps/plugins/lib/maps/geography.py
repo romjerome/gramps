@@ -1294,7 +1294,7 @@ class GeoGraphyView(OsmGps, NavigationView):
                 extra_callback=self.update_shortcuts)
         configdialog.add_checkbox(grid,
                 _('Enable external geocoding :'),
-                6, 'geography.use-tracker')
+                6, 'geography.use-tracker').set_sensitive(False)
         return _('The map'), grid
 
     def set_tilepath(self, *obj):
