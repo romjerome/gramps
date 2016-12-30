@@ -110,6 +110,9 @@ class GeoFamily(GeoGraphyView):
     """
     The view used to render family map.
     """
+    CONFIGSETTINGS = (
+        ('geography.use-tracker', False),
+        )
 
     def __init__(self, pdata, dbstate, uistate, nav_group=0):
         GeoGraphyView.__init__(self, _('Family places map'),

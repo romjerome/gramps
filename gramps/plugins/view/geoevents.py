@@ -111,6 +111,9 @@ class GeoEvents(GeoGraphyView):
     """
     The view used to render events map.
     """
+    CONFIGSETTINGS = (
+        ('geography.use-tracker', False),
+        )
 
     def __init__(self, pdata, dbstate, uistate, nav_group=0):
         self.window_name = _('Events places map')
