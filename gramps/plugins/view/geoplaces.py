@@ -1,4 +1,4 @@
-# -*- python -*-
+								# -*- python -*-
 # -*- coding: utf-8 -*-
 #
 # Gramps - a GTK+/GNOME based genealogy program
@@ -126,7 +126,6 @@ class GeoPlaces(GeoGraphyView):
         ('geography.map_service', constants.OPENSTREETMAP),
         ('geography.max_places', 5000),
         ('geography.use-keypad', True),
-        ('geography.use-tracker', constants.track),
 
         # specific to geoplaces :
 

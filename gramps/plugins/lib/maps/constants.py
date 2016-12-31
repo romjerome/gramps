@@ -116,4 +116,3 @@ MAP_TYPE = {
     VIRTUAL_EARTH_HYBRID    : osmgpsmap.MapSource_t.VIRTUAL_EARTH_HYBRID,
 }
 
-track = True

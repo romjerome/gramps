@@ -28,7 +28,6 @@ import os
 # NOTE: config is predefined
 
 # NOTE: you can override this in settings.ini or here:
-#from gramps.gen.config import config
 dbtype = config.get('database.dbtype')
 
 if dbtype == "sqlite":

@@ -269,12 +269,13 @@ class EditEvent(EditPrimary):
                        self.db) as trans:
                 self.db.add_event(self.obj, trans)
         else:
-            if self.data_has_changed():
+            orig = self.get_from_handle(self.obj.handle)
+            if self.obj.serialize() != orig.serialize():
                 with DbTxn(_("Edit Event (%s)") % self.obj.get_gramps_id(),
                            self.db) as trans:
                     if not self.obj.get_gramps_id():
                         self.obj.set_gramps_id(self.db.find_next_event_gramps_id())
-                    self.db.commit_event(self.obj, trans)
+                    self.commit_event(self.obj, trans)
 
         if self.callback:
             self.callback(self.obj)

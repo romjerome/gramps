@@ -342,7 +342,7 @@ class Callback:
                        "              line: %d\n"
                        "              func: %s\n"
                        % ((str(signal_name), ) + inspect.stack()[1][1:4]))
-                #return
+            return
 
         try:
             self._current_signals.append(signal_name)
