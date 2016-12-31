@@ -30,9 +30,7 @@ Class handling displaying of places.
 from ..config import config
 from ..utils.location import get_location_list
 from ..lib import PlaceType
-from gramps.gen.const import GRAMPS_LOCALE as glocale
 from gramps.gen.const import SEPARATORS
-_ = glocale.translation.gettext
 
 #-------------------------------------------------------------------------
 #
