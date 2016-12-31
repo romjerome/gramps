@@ -182,6 +182,7 @@ register('geography.zoom_when_center', 12)
 register('geography.show_cross', False)
 register('geography.path', "")
 register('geography.use-keypad', True)
+register('geography.use-tracker', False)
 
 # note that other calls to "register" are done in realtime (when
 # needed), for instance to four 'interface.clipboard' variables --
@@ -250,6 +251,8 @@ register('preferences.place-number', False)
 register('preferences.place-reverse', False)
 register('preferences.place-restrict', 0)
 register('preferences.place-lang', '')
+register('preferences.place-name-column', True)
+register('preferences.place-separator', 0)
 register('preferences.patronimic-surname', False)
 register('preferences.no-given-text', "[%s]" % _("Missing Given Name"))
 register('preferences.no-record-text', "[%s]" % _("Missing Record"))
