@@ -17,9 +17,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-from gramps.gen.plug._pluginreg import newplugin, STABLE, DATABASE
 from gramps.gen.const import GRAMPS_LOCALE as glocale
 _ = glocale.translation.gettext
+from gramps.gen.plug._pluginreg import newplugin, STABLE, DATABASE
 
 plg = newplugin()
 plg.id    = 'bsddb'
