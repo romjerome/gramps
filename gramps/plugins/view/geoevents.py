@@ -55,7 +55,6 @@ from gramps.gen.display.name import displayer as _nd
 from gramps.gen.display.place import displayer as _pd
 from gramps.gen.utils.place import conv_lat_lon
 from gramps.gui.views.bookmarks import EventBookmarks
-from gramps.plugins.lib.maps import constants
 from gramps.plugins.lib.maps.geography import GeoGraphyView
 from gramps.gui.utils import ProgressMeter
 
@@ -112,21 +111,6 @@ class GeoEvents(GeoGraphyView):
     """
     The view used to render events map.
     """
-    CONFIGSETTINGS = (
-        ('geography.path', constants.GEOGRAPHY_PATH),
-
-        ('geography.zoom', 10),
-        ('geography.zoom_when_center', 12),
-        ('geography.show_cross', True),
-        ('geography.lock', False),
-        ('geography.center-lat', 0.0),
-        ('geography.center-lon', 0.0),
-
-        ('geography.map_service', constants.OPENSTREETMAP),
-        ('geography.max_places', 5000),
-        ('geography.use-keypad', True),
-        ('geography.use-tracker', constants.track),
-        )
 
     def __init__(self, pdata, dbstate, uistate, nav_group=0):
         self.window_name = _('Events places map')
