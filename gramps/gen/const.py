@@ -225,7 +225,7 @@ SEPARATORS = [_(","), _("❘"), _("/"), _("#"), _("-"), _("_"), "@"]
 #
 #-------------------------------------------------------------------------
 COPYRIGHT_MSG = "© 2001-2006 Donald N. Allingham\n" \
-                "© 2007-2016 The Gramps Developers"
+                "© 2007-2017 The Gramps Developers"
 COMMENTS = _("Gramps\n (Genealogical Research and Analysis "
              "Management Programming System)\n"
              "is a personal genealogy program.")
