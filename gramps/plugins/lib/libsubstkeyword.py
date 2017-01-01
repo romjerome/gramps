@@ -1271,7 +1271,7 @@ if __name__ == '__main__':
     def main_level_test(_in, testing_class, testing_what):
         """This is a mini def __main_level(self):
         """
-        main = _in
+        main = LevelParse(_in)
         sepa = SeparatorParse(_in)
         test = testing_class(_in)
 

@@ -72,6 +72,7 @@ from . import (DbBsddbRead, DbWriteBase, BSDDBTxn,
 
 from gramps.gen.db import exceptions
 from gramps.gen.db.dbconst import *
+from gramps.gen.db.exceptions import DbException
 from gramps.gen.utils.callback import Callback
 from gramps.gen.utils.id import create_id
 from gramps.gen.updatecallback import UpdateCallback

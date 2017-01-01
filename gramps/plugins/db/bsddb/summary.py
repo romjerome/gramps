@@ -26,6 +26,7 @@ from bsddb3 import dbshelve, db
 
 from gramps.gen.db import META, PERSON_TBL
 from  gramps.gen.db.dbconst import BDBVERSFN
+from gramps.gen.db.generic import LOG
 
 import logging
 LOG = logging.getLogger(".dbsummary")
