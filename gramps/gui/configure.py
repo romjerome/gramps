@@ -327,7 +327,7 @@ class ConfigureDialog(ManagedWindow):
         """
         if not config:
             config = self.__config
-        lwidget = BasicLabel("%s: " %label)
+        lwidget = BasicLabel(_("%s: ") % label) # needed for French, else ignore
         hbox = Gtk.Box()
         if path:
             entry.set_text(path)
@@ -351,7 +351,7 @@ class ConfigureDialog(ManagedWindow):
         if not callback:
             callback = self.update_entry
         if label:
-            lwidget = BasicLabel("%s: " % label)
+            lwidget = BasicLabel(_("%s: ") % label) # translators: for French
         entry = Gtk.Entry()
         if localized_config:
             entry.set_text(config.get(constant))
@@ -372,7 +372,7 @@ class ConfigureDialog(ManagedWindow):
         """
         if not config:
             config = self.__config
-        lwidget = BasicLabel("%s: " % label)
+        lwidget = BasicLabel(_("%s: ") % label) # needed for French, else ignore
         entry = Gtk.Entry()
         entry.set_text(str(config.get(constant)))
         entry.set_tooltip_markup(helptext)
@@ -385,7 +385,7 @@ class ConfigureDialog(ManagedWindow):
     def add_color(self, grid, label, index, constant, config=None, col=0):
         if not config:
             config = self.__config
-        lwidget = BasicLabel("%s: " % label)
+        lwidget = BasicLabel(_("%s: ") % label) # needed for French, else ignore
         hexval = config.get(constant)
         color = Gdk.color_parse(hexval)
         entry = Gtk.ColorButton(color=color)
@@ -410,7 +410,7 @@ class ConfigureDialog(ManagedWindow):
             config = self.__config
         if not callback:
             callback = self.update_combo
-        lwidget = BasicLabel("%s: " % label)
+        lwidget = BasicLabel(_("%s: ") % label) # needed for French, else ignore
         store = Gtk.ListStore(int, str)
         for item in opts:
             store.append(item)
@@ -447,7 +447,7 @@ class ConfigureDialog(ManagedWindow):
             config = self.__config
         if not callback:
             callback = self.update_slider
-        lwidget = BasicLabel("%s: " % label)
+        lwidget = BasicLabel(_("%s: ") % label) # needed for French, else ignore
         adj = Gtk.Adjustment(value=config.get(constant), lower=range[0],
                              upper=range[1], step_increment=1,
                              page_increment=0, page_size=0)
@@ -469,7 +469,7 @@ class ConfigureDialog(ManagedWindow):
             config = self.__config
         if not callback:
             callback = self.update_spinner
-        lwidget = BasicLabel("%s: " % label)
+        lwidget = BasicLabel(_("%s: ") % label) # needed for French, else ignore
         adj = Gtk.Adjustment(value=config.get(constant), lower=range[0],
                              upper=range[1], step_increment=1,
                              page_increment=0, page_size=0)
@@ -978,7 +978,7 @@ class GrampsPreferences(ConfigureDialog):
         self.fmt_obox.set_active(active)
         self.fmt_obox.connect('changed', self.cb_name_changed)
         # label for the combo
-        lwidget = BasicLabel("%s: " % _('Name format'))
+        lwidget = BasicLabel(_("%s: ") % _('Name format'))
         lwidget.set_use_underline(True)
         lwidget.set_mnemonic_widget(self.fmt_obox)
         hbox = Gtk.Box()
@@ -1006,7 +1006,7 @@ class GrampsPreferences(ConfigureDialog):
             active = 0
         obox.set_active(active)
         obox.connect('changed', self.date_format_changed)
-        lwidget = BasicLabel("%s: " % _('Date format'))
+        lwidget = BasicLabel(_("%s: ") % _('Date format'))
         grid.attach(lwidget, 0, row, 1, 1)
         grid.attach(obox, 1, row, 2, 1)
         row += 1
@@ -1027,7 +1027,7 @@ class GrampsPreferences(ConfigureDialog):
         obox.connect('changed',
                      lambda obj: config.set('preferences.age-display-precision',
                                             obj.get_active() + 1))
-        lwidget = BasicLabel("%s: "
+        lwidget = BasicLabel(_("%s: ")
                              % _('Age display precision (requires restart)'))
         grid.attach(lwidget, 0, row, 1, 1)
         grid.attach(obox, 1, row, 2, 1)
@@ -1041,7 +1041,7 @@ class GrampsPreferences(ConfigureDialog):
             active = 0
         obox.set_active(active)
         obox.connect('changed', self.date_calendar_changed)
-        lwidget = BasicLabel("%s: " % _('Calendar on reports'))
+        lwidget = BasicLabel(_("%s: ") % _('Calendar on reports'))
         grid.attach(lwidget, 0, row, 1, 1)
         grid.attach(obox, 1, row, 2, 1)
         row += 1
@@ -1054,7 +1054,7 @@ class GrampsPreferences(ConfigureDialog):
         obox.connect('changed',
                      lambda obj: config.set('behavior.surname-guessing',
                                             obj.get_active()))
-        lwidget = BasicLabel("%s: " % _('Surname guessing'))
+        lwidget = BasicLabel(_("%s: ") % _('Surname guessing'))
         grid.attach(lwidget, 0, row, 1, 1)
         grid.attach(obox, 1, row, 2, 1)
         row += 1
@@ -1067,7 +1067,7 @@ class GrampsPreferences(ConfigureDialog):
         obox.connect('changed',
                      lambda obj: config.set('preferences.family-relation-type',
                                             obj.get_active()))
-        lwidget = BasicLabel("%s: " % _('Default family relationship'))
+        lwidget = BasicLabel(_("%s: ") % _('Default family relationship'))
         grid.attach(lwidget, 0, row, 1, 1)
         grid.attach(obox, 1, row, 2, 1)
         row += 1
@@ -1091,7 +1091,7 @@ class GrampsPreferences(ConfigureDialog):
             obox.set_active(1)
         obox.connect('changed',
                      lambda obj: config.set('interface.statusbar', 2*obj.get_active()))
-        lwidget = BasicLabel("%s: " % _('Status bar'))
+        lwidget = BasicLabel(_("%s: ") % _('Status bar'))
         grid.attach(lwidget, 0, row, 1, 1)
         grid.attach(obox, 1, row, 2, 1)
         row += 1
@@ -1148,7 +1148,7 @@ class GrampsPreferences(ConfigureDialog):
         active = config.get('preferences.place-restrict')
         obox.set_active(active)
         obox.connect('changed', self.place_restrict_changed)
-        lwidget = BasicLabel("%s: " % _('Restrict'))
+        lwidget = BasicLabel(_("%s: ") % _('Restrict'))
         grid2.attach(lwidget, 0, row, 1, 1)
         grid2.attach(obox, 1, row, 2, 1)
         self.place_widgets.append(obox)
@@ -1208,15 +1208,15 @@ class GrampsPreferences(ConfigureDialog):
     def check_for_type_changed(self, obj):
         active = obj.get_active()
         if active == 0:  # update
-            config.set('behavior.check-for-update-types', ["update"])
+            config.set('behavior.check-for-addon-update-types', ["update"])
         elif active == 1:  # update
-            config.set('behavior.check-for-update-types', ["new"])
+            config.set('behavior.check-for-addon-update-types', ["new"])
         elif active == 2:  # update
-            config.set('behavior.check-for-update-types', ["update", "new"])
+            config.set('behavior.check-for-addon-update-types', ["update", "new"])
 
     def toggle_hide_previous_addons(self, obj):
         active = obj.get_active()
-        config.set('behavior.do-not-show-previously-seen-updates',
+        config.set('behavior.do-not-show-previously-seen-addon-updates',
                    bool(active))
 
     def toggle_tag_on_import(self, obj):
@@ -1226,7 +1226,7 @@ class GrampsPreferences(ConfigureDialog):
 
     def check_for_updates_changed(self, obj):
         active = obj.get_active()
-        config.set('behavior.check-for-updates', active)
+        config.set('behavior.check-for-addon-updates', active)
 
     def place_restrict_changed(self, obj):
         active = obj.get_active()
@@ -1361,7 +1361,7 @@ class GrampsPreferences(ConfigureDialog):
                 self.set_mediapath, self.select_mediapath)
 
         current_line += 1
-        # Check for updates:
+        # Check for addon updates:
         obox = Gtk.ComboBoxText()
         formats = [_("Never"),
                    _("Once a month"),
@@ -1369,10 +1369,10 @@ class GrampsPreferences(ConfigureDialog):
                    _("Once a day"),
                    _("Always"), ]
         list(map(obox.append_text, formats))
-        active = config.get('behavior.check-for-updates')
+        active = config.get('behavior.check-for-addon-updates')
         obox.set_active(active)
         obox.connect('changed', self.check_for_updates_changed)
-        lwidget = BasicLabel("%s: " % _('Check for updates'))
+        lwidget = BasicLabel(_("%s: ") % _('Check for addon updates'))
         grid.attach(lwidget, 1, current_line, 1, 1)
         grid.attach(obox, 2, current_line, 1, 1)
 
@@ -1382,7 +1382,7 @@ class GrampsPreferences(ConfigureDialog):
                    _("New addons only"),
                    _("New and updated addons"),]
         list(map(self.whattype_box.append_text, formats))
-        whattype = config.get('behavior.check-for-update-types')
+        whattype = config.get('behavior.check-for-addon-update-types')
         if "new" in whattype and "update" in whattype:
             self.whattype_box.set_active(2)
         elif "new" in whattype:
@@ -1390,7 +1390,7 @@ class GrampsPreferences(ConfigureDialog):
         elif "update" in whattype:
             self.whattype_box.set_active(0)
         self.whattype_box.connect('changed', self.check_for_type_changed)
-        lwidget = BasicLabel("%s: " % _('What to check'))
+        lwidget = BasicLabel(_("%s: ") % _('What to check'))
         grid.attach(lwidget, 1, current_line, 1, 1)
         grid.attach(self.whattype_box, 2, current_line, 1, 1)
 
@@ -1400,11 +1400,11 @@ class GrampsPreferences(ConfigureDialog):
         current_line += 1
         checkbutton = Gtk.CheckButton(
             label=_("Do not ask about previously notified addons"))
-        checkbutton.set_active(config.get('behavior.do-not-show-previously-seen-updates'))
+        checkbutton.set_active(config.get('behavior.do-not-show-previously-seen-addon-updates'))
         checkbutton.connect("toggled", self.toggle_hide_previous_addons)
 
         grid.attach(checkbutton, 1, current_line, 1, 1)
-        button = Gtk.Button(label=_("Check now"))
+        button = Gtk.Button(label=_("Check for updated addons now"))
         button.connect("clicked", self.check_for_updates)
         grid.attach(button, 3, current_line, 1, 1)
 
@@ -1423,7 +1423,7 @@ class GrampsPreferences(ConfigureDialog):
         if len(addon_update_list) > 0:
             PluginWindows.UpdateAddons(addon_update_list, self.window)
         else:
-            check_types = config.get('behavior.check-for-update-types')
+            check_types = config.get('behavior.check-for-addon-update-types')
             OkDialog(
                 _("There are no available addons of this type"),
                 _("Checked for '%s'") %
@@ -1451,7 +1451,7 @@ class GrampsPreferences(ConfigureDialog):
         current_line = 0
 
         if __debug__:
-            lwidget = BasicLabel("%s: " % _('Database backend'))
+            lwidget = BasicLabel(_("%s: ") % _('Database backend'))
             grid.attach(lwidget, 1, current_line, 1, 1)
             obox = self.__create_backend_combo()
             grid.attach(obox, 2, current_line, 1, 1)
@@ -1495,7 +1495,7 @@ class GrampsPreferences(ConfigureDialog):
         active = config.get('database.autobackup')
         obox.set_active(active)
         obox.connect('changed', self.autobackup_changed)
-        lwidget = BasicLabel("%s: " % _('Autobackup'))
+        lwidget = BasicLabel(_("%s: ") % _('Autobackup'))
         grid.attach(lwidget, 1, current_line, 1, 1)
         grid.attach(obox, 2, current_line, 1, 1)
 
