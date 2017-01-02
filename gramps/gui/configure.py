@@ -1161,6 +1161,19 @@ class GrampsPreferences(ConfigureDialog):
 
         self.auto_title_changed(auto)
 
+        sepbox = Gtk.ComboBoxText()
+        list(map(sepbox.append_text, SEPARATORS))
+        active = config.get('preferences.place-separator')
+        if active >= len(SEPARATORS):
+            active = 0
+        sepbox.set_active(active)
+        sepbox.connect('changed', self.place_separator_changed)
+        lwidget = BasicLabel(_("%s: ") % _('Separator for hierarchy levels'))
+        grid2.attach(lwidget, 0, row, 1, 1)
+        grid2.attach(sepbox, 1, row, 2, 1)
+        self.place_widgets.append(sepbox)
+        row += 1
+
         grid3 = Gtk.Grid()
         grid3.set_border_width(12)
         grid3.set_column_spacing(6)
@@ -1173,21 +1186,6 @@ class GrampsPreferences(ConfigureDialog):
                  row,
                  'preferences.place-name-column',
                  start=0)
-        row += 1
-
-        #self.add_entry(grid, _('Separator for hierarchy levels'), 7,
-                       #'preferences.place-separator')
-
-        sepbox = Gtk.ComboBoxText()
-        list(map(sepbox.append_text, SEPARATORS))
-        active = config.get('preferences.place-separator')
-        if active >= len(SEPARATORS):
-            active = 0
-        sepbox.set_active(active)
-        sepbox.connect('changed', self.place_separator_changed)
-        lwidget = BasicLabel(_("%s: ") % _('Separator for hierarchy levels'))
-        grid3.attach(lwidget, 0, row, 1, 1)
-        grid3.attach(sepbox, 1, row, 2, 1)
         row += 1
 
         return _('Places'), grid

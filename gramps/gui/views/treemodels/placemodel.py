@@ -128,7 +128,7 @@ class PlaceBaseModel:
 
     def column_name(self, data):
         if config.get("preferences.place-name-column"):
-            return '|'.join([data[6][0]] + [name[0] for name in data[7]])
+            return ';'.join([data[6][0]] + [name[0] for name in data[7]])
         else:
             return data[6][0]
 
