@@ -584,6 +584,5 @@ def htmltest():
     pass
 
 if __name__ == '__main__':
-    #from libhtmltest import htmltest
-    #htmltest()
-    pass
+    from libhtmltest import htmltest
+    htmltest()
