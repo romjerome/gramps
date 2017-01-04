@@ -30,6 +30,7 @@ Class handling displaying of places.
 from ..config import config
 from ..utils.location import get_location_list
 from ..lib import PlaceType
+from gramps.gen.const import SEPARATORS
 
 #-------------------------------------------------------------------------
 #
@@ -80,7 +81,8 @@ class PlaceDisplay:
             if config.get('preferences.place-reverse'):
                 names.reverse()
 
-            return ", ".join(names)
+            user_choice_number = config.get('preferences.place-separator')
+            return SEPARATORS[user_choice_number].join(names)
 
 def _find_populated_place(places):
     populated_place = None

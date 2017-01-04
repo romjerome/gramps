@@ -49,7 +49,7 @@ from gi.repository import Pango
 #-------------------------------------------------------------------------
 from gramps.gen.config import config
 from gramps.gen.const import GRAMPS_LOCALE as glocale
-from gramps.gen.const import HOME_DIR, URL_WIKISTRING
+from gramps.gen.const import HOME_DIR, URL_WIKISTRING, SEPARATORS
 from gramps.gen.datehandler import get_date_formats
 from gramps.gen.display.name import displayer as _nd
 from gramps.gen.display.name import NameDisplayError
@@ -1129,7 +1129,7 @@ class GrampsPreferences(ConfigureDialog):
         grid.attach(grid2, 1, 1, 1, 1)
 
         self.place_widgets = []
-        cbox = self.add_checkbox(grid2, _("Suppress comma after house number"),
+        cbox = self.add_checkbox(grid2, _("Suppress separator after house number"),
                                  row, 'preferences.place-number', start=0)
         self.place_widgets.append(cbox)
         row += 1
@@ -1161,6 +1161,33 @@ class GrampsPreferences(ConfigureDialog):
 
         self.auto_title_changed(auto)
 
+        sepbox = Gtk.ComboBoxText()
+        list(map(sepbox.append_text, SEPARATORS))
+        active = config.get('preferences.place-separator')
+        if active >= len(SEPARATORS):
+            active = 0
+        sepbox.set_active(active)
+        sepbox.connect('changed', self.place_separator_changed)
+        lwidget = BasicLabel(_("%s: ") % _('Separator for hierarchy levels'))
+        grid2.attach(lwidget, 0, row, 1, 1)
+        grid2.attach(sepbox, 1, row, 2, 1)
+        self.place_widgets.append(sepbox)
+        row += 1
+
+        grid3 = Gtk.Grid()
+        grid3.set_border_width(12)
+        grid3.set_column_spacing(6)
+        grid3.set_row_spacing(6)
+        grid.attach(grid3, 1, 2, 1, 1)
+
+        pnbox = self.add_checkbox(
+                 grid3,
+                 _("Display alternate place names on place view and selector"),
+                 row,
+                 'preferences.place-name-column',
+                 start=0)
+        row += 1
+
         return _('Places'), grid
 
     def auto_title_changed(self, obj):
@@ -1170,6 +1197,9 @@ class GrampsPreferences(ConfigureDialog):
         active = obj.get_active()
         for widget in self.place_widgets:
             widget.set_sensitive(active)
+
+    def place_separator_changed(self, obj):
+        config.set('preferences.place-separator', obj.get_active())
 
     def add_text_panel(self, configdialog):
         row = 0
