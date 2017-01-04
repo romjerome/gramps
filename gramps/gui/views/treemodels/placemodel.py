@@ -51,6 +51,7 @@ from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.config import config
 from .flatbasemodel import FlatBaseModel
 from .treebasemodel import TreeBaseModel
+from gramps.gen.const import SEPARATORS
 
 #-------------------------------------------------------------------------
 #
@@ -128,7 +129,8 @@ class PlaceBaseModel:
 
     def column_name(self, data):
         if config.get("preferences.place-name-column"):
-            return ';'.join([data[6][0]] + [name[0] for name in data[7]])
+            separator = SEPARATORS[1]
+            return separator.join([data[6][0]] + [name[0] for name in data[7]])
         else:
             return data[6][0]
 
