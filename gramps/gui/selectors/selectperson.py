@@ -124,6 +124,10 @@ class SelectPerson(BaseSelector):
                         spouse = dbstate.db.get_person_from_handle(spouse_handle)
                         sid = spouse.get_gramps_id()
                         sfilter.add_rule(rules.person.HasIdOf([sid]))
+                    for child_ref in dfamily.get_child_ref_list():
+                        child = dbstate.db.get_person_from_handle(child_ref.ref)
+                        cid = child.get_gramps_id()
+                        sfilter.add_rule(rules.person.HasIdOf([cid]))
 
         # Add last edited people.
         sfilter.add_rule(rules.person.ChangedSince(["2016-11-01", ""]))
