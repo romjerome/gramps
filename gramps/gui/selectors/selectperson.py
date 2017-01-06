@@ -111,6 +111,19 @@ class SelectPerson(BaseSelector):
                     mother = dbstate.db.get_person_from_handle(mother_handle)
                     mid = mother.get_gramps_id()
                     sfilter.add_rule(rules.person.HasIdOf([mid]))
+            families = len(active_person.get_family_handle_list())
+            if families != 0:
+                for family_handle in active_person.get_family_handle_list():
+                    dfamily = dbstate.db.get_family_from_handle(family_handle)
+                    spouse_handle = None
+                    if active_handle == dfamily.get_father_handle():
+                        spouse_handle = dfamily.get_mother_handle()
+                    if active_handle == dfamily.get_mother_handle():
+                        spouse_handle = dfamily.get_father_handle()
+                    if spouse_handle:
+                        spouse = dbstate.db.get_person_from_handle(spouse_handle)
+                        sid = spouse.get_gramps_id()
+                        sfilter.add_rule(rules.person.HasIdOf([sid]))
 
         # Add last edited people.
         sfilter.add_rule(rules.person.ChangedSince(["2016-11-01", ""]))
