@@ -35,6 +35,7 @@ from gramps.gui.widgets import Photo
 from gramps.gen.utils.place import conv_lat_lon
 from gramps.gen.utils.file import media_path_full
 from gramps.gen.display.place import displayer as place_displayer
+from gramps.gen.const import SEPARATORS
 from gramps.gen.const import GRAMPS_LOCALE as glocale
 _ = glocale.translation.gettext
 
@@ -140,7 +141,7 @@ class PlaceDetails(Gramplet):
                      if name.get_language() else name.get_value()
                      for name in place.get_alternative_names()]
         if len(alt_names) > 0:
-            self.add_row(_('Alternative Names'), '\n'.join(alt_names))
+            self.add_row(_('Alternative Names'), SEPARATORS[-1].join(alt_names))
 
     def display_empty(self):
         """
