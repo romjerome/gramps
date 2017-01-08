@@ -141,7 +141,7 @@ class PlaceDetails(Gramplet):
                      if name.get_language() else name.get_value()
                      for name in place.get_alternative_names()]
         if len(alt_names) > 0:
-            self.add_row(_('Alternative Names'), SEPARATORS[-1].join(alt_names))
+            self.add_row(_('Alternative Names'), SEPARATORS[1].join(alt_names))
 
     def display_empty(self):
         """
