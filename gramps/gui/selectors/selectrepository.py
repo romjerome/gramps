@@ -45,6 +45,8 @@ from gramps.gen.const import URL_MANUAL_SECT2
 WIKI_HELP_PAGE = URL_MANUAL_SECT2
 WIKI_HELP_SEC = _('manual|Repositories')
 
+REPOSITORY_DATE = None
+
 #-------------------------------------------------------------------------
 #
 # SelectRepository

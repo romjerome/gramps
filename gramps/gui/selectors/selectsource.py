@@ -46,6 +46,8 @@ from gramps.gen.const import URL_MANUAL_PAGE
 WIKI_HELP_PAGE = '%s_-_xxx' % URL_MANUAL_PAGE # FIXME
 WIKI_HELP_SEC = _('manual|xxxx') # FIXME
 
+SOURCE_DATE = Today() - 1
+
 #-------------------------------------------------------------------------
 #
 # SelectSource
@@ -77,8 +79,7 @@ class SelectSource(BaseSelector):
         #sfilter.add_rule(rules.source.IsBookmarked([]))
 
         # Add last edited sources.
-        year = Today() - 1
-        sfilter.add_rule(rules.source.ChangedSince(["%s" % year, ""]))
+        sfilter.add_rule(rules.source.ChangedSince(["%s" % SOURCE_DATE, "%s" % Today()]))
 
         # Add recent sources.
         for handle in history:

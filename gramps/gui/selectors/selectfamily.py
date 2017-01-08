@@ -45,6 +45,8 @@ from gramps.gen.const import URL_MANUAL_PAGE
 WIKI_HELP_PAGE = '%s_-_Categories' % URL_MANUAL_PAGE
 WIKI_HELP_SEC = _('manual|Select_Family_selector')
 
+FAMILY_DATE = None
+
 #-------------------------------------------------------------------------
 #
 # SelectFamily

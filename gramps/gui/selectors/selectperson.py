@@ -57,6 +57,8 @@ WIKI_HELP_SEC2 = _('manual|Select_Father_selector')
 WIKI_HELP_PAGE3 = URL_MANUAL_SECT1
 WIKI_HELP_SEC3 = _('manual|Select_Mother_selector')
 
+PERSON_DATE = '2016-12-01'
+
 #-------------------------------------------------------------------------
 #
 # SelectPerson
@@ -135,7 +137,7 @@ class SelectPerson(BaseSelector):
                         sfilter.add_rule(rules.person.HasIdOf([cid]))
 
         # Add last edited people.
-        sfilter.add_rule(rules.person.ChangedSince(["2016-11-01", ""]))
+        sfilter.add_rule(rules.person.ChangedSince([PERSON_DATE, ""]))
 
         # Add recent people.
         for handle in history:

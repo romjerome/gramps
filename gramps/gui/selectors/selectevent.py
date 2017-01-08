@@ -46,6 +46,8 @@ from gramps.gen.const import URL_MANUAL_SECT1
 WIKI_HELP_PAGE = URL_MANUAL_SECT1
 WIKI_HELP_SEC = _('manual|Select_Event_selector')
 
+EVENT_DATE = Today() - 1
+
 #-------------------------------------------------------------------------
 #
 # SelectEvent
@@ -77,8 +79,7 @@ class SelectEvent(BaseSelector):
         #sfilter.add_rule(rules.event.IsBookmarked([]))
 
         # Add last edited events.
-        year = Today() - 1
-        sfilter.add_rule(rules.event.ChangedSince(["%s" % year, ""]))
+        sfilter.add_rule(rules.event.ChangedSince(["%s" % EVENT_DATE, ""]))
 
         # Add recent events.
         for handle in history:
