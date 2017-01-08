@@ -709,6 +709,11 @@ class GuiPersonOption(Gtk.Box):
                     mother = self.__dbstate.db.get_person_from_handle(mother_handle)
                     mid = mother.get_gramps_id()
                     rfilter.add_rule(rules.person.HasIdOf([mid]))
+                sib_list = family.get_child_ref_list()
+                for sib_ref in sib_list:
+                    sibling = self.__dbstate.db.get_person_from_handle(sib_ref.ref)
+                    sbid = sibling.get_gramps_id()
+                    rfilter.add_rule(rules.person.HasIdOf([sbid]))
             families = len(active_person.get_family_handle_list())
             if families != 0:
                 for family_handle in active_person.get_family_handle_list():
