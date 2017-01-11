@@ -38,7 +38,7 @@ from ..filters import SearchBar
 from ..glade import Glade
 from ..widgets.interactivesearchbox import InteractiveSearchBox
 
-LOG = logging.getLogger("gui.baseselector")
+LOG = logging.getLogger("gui.selector")
 
 #-------------------------------------------------------------------------
 #
@@ -161,7 +161,7 @@ class BaseSelector(ManagedWindow):
             self.goto_handle(default)
 
         two = time.clock()
-        LOG.debug("BaseSelection needs: '%s' seconds", two - one)
+        LOG.debug("BaseSelector needs: '%s' seconds", two - one)
 
     def _show_all(self, new_state_obj, was):
         """

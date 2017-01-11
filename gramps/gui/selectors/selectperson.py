@@ -18,7 +18,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-
+import time
+import logging
 #-------------------------------------------------------------------------
 #
 # internationalization
@@ -59,6 +60,8 @@ WIKI_HELP_SEC3 = _('manual|Select_Mother_selector')
 
 PERSON_DATE = '2016-12-01'
 
+LOG = logging.getLogger("gui.selector")
+
 #-------------------------------------------------------------------------
 #
 # SelectPerson
@@ -70,6 +73,8 @@ class SelectPerson(BaseSelector):
 
     def __init__(self, dbstate, uistate, track=[], title=None, filter=None,
                  skip=set(), show_search_bar=False, default=None):
+
+        a = time.clock()
 
         # SelectPerson may have a title passed to it which should be used
         # instead of the default defined for get_window_title()
@@ -157,6 +162,9 @@ class SelectPerson(BaseSelector):
         else:
             BaseSelector.__init__(self, dbstate, uistate, track, sfilter,
                               skip, show_search_bar, active_handle)
+
+        b = time.clock()
+        LOG.debug("PersonSelector needs: '%s' seconds", b - a)
 
     def _local_init(self):
         """
