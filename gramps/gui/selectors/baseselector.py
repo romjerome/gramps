@@ -18,7 +18,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-
+import time
+import logging
 #-------------------------------------------------------------------------
 #
 # GTK/Gnome modules
@@ -36,6 +37,8 @@ from ..managedwindow import ManagedWindow
 from ..filters import SearchBar
 from ..glade import Glade
 from ..widgets.interactivesearchbox import InteractiveSearchBox
+
+LOG = logging.getLogger("gui.baseselector")
 
 #-------------------------------------------------------------------------
 #
@@ -73,6 +76,8 @@ class BaseSelector(ManagedWindow):
         The third element indicates if an exact search is required.
         A filter performs a search on the displayed columns only.
         '''
+
+        one = time.clock()
 
         #from gramps.gen.filters import GenericFilterFactory, rules
 
@@ -154,6 +159,9 @@ class BaseSelector(ManagedWindow):
             #self.showall.hide()
         if default:
             self.goto_handle(default)
+
+        two = time.clock()
+        LOG.debug("BaseSelection needs: '%s' seconds", two - one)
 
     def _show_all(self, new_state_obj, was):
         """
