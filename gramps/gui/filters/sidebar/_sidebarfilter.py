@@ -29,6 +29,7 @@ from gi.repository import Pango
 from ... import widgets
 from ...dbguielement import DbGUIElement
 from gramps.gen.config import config
+from ...utils import get_primary_mask
 
 _RETURN = Gdk.keyval_from_name("Return")
 _KP_ENTER = Gdk.keyval_from_name("KP_Enter")
@@ -129,7 +130,7 @@ class SidebarFilter(DbGUIElement):
             widget.set_tooltip_text(tooltip)
 
     def key_press(self, obj, event):
-        if not (event.get_state() & Gdk.ModifierType.CONTROL_MASK):
+        if not (event.get_state() & get_primary_mask()):
             if event.keyval in (_RETURN, _KP_ENTER):
                 self.clicked(obj)
         return False
@@ -212,9 +213,6 @@ class SidebarFilter(DbGUIElement):
         if self.dbstate.is_open():
             for handle in self.dbstate.db.get_tag_handles(sort_handles=True):
                 tag = self.dbstate.db.get_tag_from_handle(handle)
-                # for python3 this returns a byte object, so conversion needed
-                if not isinstance(handle, str):
-                    handle = handle.decode('utf-8')
                 self.__tag_list.append((tag.get_name(), handle))
         self.on_tags_changed([item[0] for item in self.__tag_list])
 

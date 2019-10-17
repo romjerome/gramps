@@ -72,11 +72,11 @@ from . import (DbBsddbRead, DbWriteBase, BSDDBTxn,
 
 from gramps.gen.db import exceptions
 from gramps.gen.db.dbconst import *
+from gramps.gen.db.utils import write_lock_file, clear_lock_file
 from gramps.gen.utils.callback import Callback
 from gramps.gen.utils.id import create_id
 from gramps.gen.updatecallback import UpdateCallback
 from gramps.gen.errors import DbError, HandleError
-from gramps.gen.constfunc import win, get_env_var
 from gramps.gen.const import HOME_DIR, GRAMPS_LOCALE as glocale
 _ = glocale.translation.gettext
 
@@ -87,7 +87,7 @@ LOG = logging.getLogger(".citation")
 #_hdlr.setFormatter(logging.Formatter(fmt="%(name)s.%(levelname)s: %(message)s"))
 #_LOG.addHandler(_hdlr)
 _MINVERSION = 9
-_DBVERSION = 18
+_DBVERSION = 19
 
 IDTRANS     = "person_id"
 FIDTRANS    = "family_id"
@@ -139,7 +139,7 @@ def find_idmap(key, data):
     returns a byte string
     """
     val = data[1]
-    if isinstance(val, str):
+    if val is not None:
         val = val.encode('utf-8')
     return val
 
@@ -148,9 +148,7 @@ def find_parent(key, data):
         val = data[5][0][0]
     else:
         val = ''
-    if isinstance(val, str):
-        val = val.encode('utf-8')
-    return val
+    return val.encode('utf-8')
 
 # Secondary database key lookups for reference_map table
 # reference_map data values are of the form:
@@ -162,18 +160,14 @@ def find_primary_handle(key, data):
     returns byte string
     """
     val = (data)[0][1]
-    if isinstance(val, str):
-        val = val.encode('utf-8')
-    return val
+    return val.encode('utf-8')
 
 def find_referenced_handle(key, data):
     """ return handle for association of indexes
     returns byte string
     """
     val = (data)[1][1]
-    if isinstance(val, str):
-        val = val.encode('utf-8')
-    return val
+    return val.encode('utf-8')
 
 #-------------------------------------------------------------------------
 #
@@ -241,158 +235,12 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
         DbBsddbRead.__init__(self)
         DbWriteBase.__init__(self)
         #UpdateCallback.__init__(self)
-        self.__tables = {
-            'Person':
-            {
-                "handle_func": self.get_person_from_handle,
-                "gramps_id_func": self.get_person_from_gramps_id,
-                "class_func": Person,
-                "cursor_func": self.get_person_cursor,
-                "handles_func": self.get_person_handles,
-                "add_func": self.add_person,
-                "commit_func": self.commit_person,
-                "count_func": self.get_number_of_people,
-                "del_func": self.remove_person,
-                "iter_func": self.iter_people,
-            },
-            'Family':
-            {
-                "handle_func": self.get_family_from_handle,
-                "gramps_id_func": self.get_family_from_gramps_id,
-                "class_func": Family,
-                "cursor_func": self.get_family_cursor,
-                "handles_func": self.get_family_handles,
-                "add_func": self.add_family,
-                "commit_func": self.commit_family,
-                "count_func": self.get_number_of_families,
-                "del_func": self.remove_family,
-                "iter_func": self.iter_families,
-            },
-            'Source':
-            {
-                "handle_func": self.get_source_from_handle,
-                "gramps_id_func": self.get_source_from_gramps_id,
-                "class_func": Source,
-                "cursor_func": self.get_source_cursor,
-                "handles_func": self.get_source_handles,
-                "add_func": self.add_source,
-                "commit_func": self.commit_source,
-                "count_func": self.get_number_of_sources,
-                "del_func": self.remove_source,
-                "iter_func": self.iter_sources,
-            },
-            'Citation':
-            {
-                "handle_func": self.get_citation_from_handle,
-                "gramps_id_func": self.get_citation_from_gramps_id,
-                "class_func": Citation,
-                "cursor_func": self.get_citation_cursor,
-                "handles_func": self.get_citation_handles,
-                "add_func": self.add_citation,
-                "commit_func": self.commit_citation,
-                "count_func": self.get_number_of_citations,
-                "del_func": self.remove_citation,
-                "iter_func": self.iter_citations,
-            },
-            'Event':
-            {
-                "handle_func": self.get_event_from_handle,
-                "gramps_id_func": self.get_event_from_gramps_id,
-                "class_func": Event,
-                "cursor_func": self.get_event_cursor,
-                "handles_func": self.get_event_handles,
-                "add_func": self.add_event,
-                "commit_func": self.commit_event,
-                "count_func": self.get_number_of_events,
-                "del_func": self.remove_event,
-                "iter_func": self.iter_events,
-            },
-            'Media':
-            {
-                "handle_func": self.get_media_from_handle,
-                "gramps_id_func": self.get_media_from_gramps_id,
-                "class_func": Media,
-                "cursor_func": self.get_media_cursor,
-                "handles_func": self.get_media_handles,
-                "add_func": self.add_media,
-                "commit_func": self.commit_media,
-                "count_func": self.get_number_of_media,
-                "del_func": self.remove_media,
-                "iter_func": self.iter_media,
-            },
-            'Place':
-            {
-                "handle_func": self.get_place_from_handle,
-                "gramps_id_func": self.get_place_from_gramps_id,
-                "class_func": Place,
-                "cursor_func": self.get_place_cursor,
-                "handles_func": self.get_place_handles,
-                "add_func": self.add_place,
-                "commit_func": self.commit_place,
-                "count_func": self.get_number_of_places,
-                "del_func": self.remove_place,
-                "iter_func": self.iter_places,
-            },
-            'Repository':
-            {
-                "handle_func": self.get_repository_from_handle,
-                "gramps_id_func": self.get_repository_from_gramps_id,
-                "class_func": Repository,
-                "cursor_func": self.get_repository_cursor,
-                "handles_func": self.get_repository_handles,
-                "add_func": self.add_repository,
-                "commit_func": self.commit_repository,
-                "count_func": self.get_number_of_repositories,
-                "del_func": self.remove_repository,
-                "iter_func": self.iter_repositories,
-            },
-            'Note':
-            {
-                "handle_func": self.get_note_from_handle,
-                "gramps_id_func": self.get_note_from_gramps_id,
-                "class_func": Note,
-                "cursor_func": self.get_note_cursor,
-                "handles_func": self.get_note_handles,
-                "add_func": self.add_note,
-                "commit_func": self.commit_note,
-                "count_func": self.get_number_of_notes,
-                "del_func": self.remove_note,
-                "iter_func": self.iter_notes,
-            },
-            'Tag':
-            {
-                "handle_func": self.get_tag_from_handle,
-                "gramps_id_func": None,
-                "class_func": Tag,
-                "cursor_func": self.get_tag_cursor,
-                "handles_func": self.get_tag_handles,
-                "add_func": self.add_tag,
-                "commit_func": self.commit_tag,
-                "count_func": self.get_number_of_tags,
-                "del_func": self.remove_tag,
-                "iter_func": self.iter_tags,
-            }
-        }
-
         self.secondary_connected = False
         self.has_changed = False
         self.brief_name = None
         self.update_env_version = False
         self.update_python_version = False
         self.update_pickle_version = False
-
-    def get_table_func(self, table=None, func=None):
-        """
-        Private implementation of get_table_func.
-        """
-        if table is None:
-            return list(self.__tables.keys())
-        elif func is None:
-            return self.__tables[table]
-        elif func in self.__tables[table].keys():
-            return self.__tables[table][func]
-        else:
-            return super().get_table_func(table, func)
 
     def catch_db_error(func):
         """
@@ -490,9 +338,6 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
     @catch_db_error
     def set_default_person_handle(self, handle):
         """Set the default Person to the passed instance."""
-        #we store a byte string!
-        if isinstance(handle, str):
-            handle = handle.encode('utf-8')
         if not self.readonly:
             # Start transaction
             with BSDDBTxn(self.env, self.metadata) as txn:
@@ -516,7 +361,7 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
             return None
 
     def set_mediapath(self, path):
-        """Set the default media path for database, path should be utf-8."""
+        """Set the default media path for database."""
         if self.metadata and not self.readonly:
             # Start transaction
             with BSDDBTxn(self.env, self.metadata) as txn:
@@ -691,7 +536,8 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
     @catch_db_error
     def load(self, name, callback=None, mode=DBMODE_W, force_schema_upgrade=False,
              force_bsddb_upgrade=False, force_bsddb_downgrade=False,
-             force_python_upgrade=False, update=True):
+             force_python_upgrade=False, update=True,
+             username=None, password=None):
         """
         If update is False: then don't update any files; open read-only
         """
@@ -715,6 +561,11 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
         self.full_name = os.path.abspath(name)
         self.path = self.full_name
         self.brief_name = os.path.basename(name)
+
+        # We use the existence of the person table as a proxy for the database
+        # being new
+        if not os.path.exists(os.path.join(self.path, 'person.db')):
+            self._write_version(name)
 
         # If we re-enter load with force_python_upgrade True, then we have
         # already checked the bsddb version, and then checked python version,
@@ -1119,12 +970,10 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
         """
         Find all child places having the given place as the primary parent.
         """
-        if isinstance(handle, str):
-            handle = handle.encode('utf-8')
         parent_cur = self.get_place_parent_cursor()
 
         try:
-            ret = parent_cur.set(handle)
+            ret = parent_cur.set(handle.encode('utf-8'))
         except:
             ret = None
 
@@ -1163,14 +1012,12 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
 
             result_list = list(find_backlink_handles(handle))
         """
-        if isinstance(handle, str):
-            handle = handle.encode('utf-8')
         # Use the secondary index to locate all the reference_map entries
         # that include a reference to the object we are looking for.
         referenced_cur = self._get_reference_map_referenced_cursor()
 
         try:
-            ret = referenced_cur.set(handle)
+            ret = referenced_cur.set(handle.encode('utf-8'))
         except:
             ret = None
 
@@ -1249,11 +1096,8 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
         handle = obj.handle
         existing_references = set()
         primary_cur = self._get_reference_map_primary_cursor()
+        key = handle.encode('utf-8')
         try:
-            if isinstance(handle, str):
-                key = handle.encode('utf-8')
-            else:
-                key = handle
             ret = primary_cur.set(key)
         except:
             ret = None
@@ -1310,8 +1154,7 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
                                     'which is partly bytecode, this is not allowed.\n'
                                     'Key is %s') % str(key))
             key = str(key)
-        if isinstance(key, str):
-            key = key.encode('utf-8')
+        key = key.encode('utf-8')
         if not self.readonly:
             if not transaction.batch:
                 old_data = self.reference_map.get(key, txn=txn)
@@ -1327,8 +1170,7 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
         if isinstance(key, tuple):
             #create a string key
             key = str(key)
-        if isinstance(key, str):
-            key = key.encode('utf-8')
+        key = key.encode('utf-8')
         if self.readonly or not key:
             return
 
@@ -1686,8 +1528,7 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
         if self.readonly or not handle:
             return
 
-        if isinstance(handle, str):
-            handle = handle.encode('utf-8')
+        handle = handle.encode('utf-8')
         if transaction.batch:
             with BSDDBTxn(self.env, data_map) as txn:
                 self._delete_primary_from_reference_map(handle, transaction,
@@ -1711,8 +1552,7 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
         person = self.get_person_from_handle(handle)
         self.genderStats.uncount_person (person)
         self.remove_from_surname_list(person)
-        if isinstance(handle, str):
-            handle = handle.encode('utf-8')
+        handle = handle.encode('utf-8')
         if transaction.batch:
             with BSDDBTxn(self.env, self.person_map) as txn:
                 self._delete_primary_from_reference_map(handle, transaction,
@@ -1806,7 +1646,7 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
                 if data is not None:
                     txn.delete(sname)
                 if group is not None:
-                    txn.put(sname, group)
+                    txn.put(sname, group.encode('utf-8'))
             if group is None:
                 grouppar = ''
             else:
@@ -1821,7 +1661,7 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
         bsddb
         """
         self.surname_list = sorted(
-                        [s.decode('utf-8') for s in self.surnames.keys()],
+                        [s.decode('utf-8') for s in set(self.surnames.keys())],
                         key=glocale.sort_key)
 
     def add_to_surname_list(self, person, batch_transaction):
@@ -1848,13 +1688,9 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
         If not then we need to remove the name from the list.
         The function must be overridden in the derived class.
         """
-        name = find_surname_name(person.handle,
-                                     person.get_primary_name().serialize())
-        if isinstance(name, str):
-            uname = name
-            name = name.encode('utf-8')
-        else:
-            uname = str(name)
+        uname = find_surname_name(person.handle,
+                                  person.get_primary_name().serialize())
+        name = uname.encode('utf-8')
         try:
             cursor = self.surnames.cursor(txn=self.txn)
             cursor_position = cursor.set(name)
@@ -1882,8 +1718,7 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
 
         obj.change = int(change_time or time.time())
         handle = obj.handle
-        if isinstance(handle, str):
-            handle = handle.encode('utf-8')
+        handle = handle.encode('utf-8')
 
         self._update_reference_map(obj, transaction, self.txn)
 
@@ -2115,18 +1950,16 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
                           transaction, change_time)
 
     def get_from_handle(self, handle, class_type, data_map):
-        if isinstance(handle, str):
-            handle = handle.encode('utf-8')
         if handle is None:
             raise HandleError('Handle is None')
         if not handle:
             raise HandleError('Handle is empty')
-        data = data_map.get(handle, txn=self.txn)
+        data = data_map.get(handle.encode('utf-8'), txn=self.txn)
         if data:
             newobj = class_type()
             newobj.unserialize(data)
             return newobj
-        raise HandleError('Handle %s not found' % handle.decode('utf-8'))
+        raise HandleError('Handle %s not found' % handle)
 
     @catch_db_error
     def transaction_begin(self, transaction):
@@ -2207,11 +2040,11 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
             self.txn = None
         self.env.log_flush()
         if not transaction.batch:
-            emit = self.__emit
-            for obj_type, obj_name in KEY_TO_NAME_MAP.items():
-                emit(transaction, obj_type, TXNADD, obj_name, '-add')
-                emit(transaction, obj_type, TXNUPD, obj_name, '-update')
-                emit(transaction, obj_type, TXNDEL, obj_name, '-delete')
+            # do deletes and adds first
+            for trans_type in [TXNDEL, TXNADD, TXNUPD]:
+                for obj_type in range(11):
+                    if obj_type != REFERENCE_KEY:
+                        self.__emit(transaction, obj_type, trans_type)
         self.transaction = None
         transaction.clear()
         self.undodb.commit(transaction, msg)
@@ -2224,21 +2057,23 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
                       hex(id(self)),
                       transaction.get_description()))
 
-    def __emit(self, transaction, obj_type, trans_type, obj, suffix):
+    def __emit(self, transaction, obj_type, trans_type):
         """
         Define helper function to do the actual emits
         """
         if (obj_type, trans_type) in transaction:
             if trans_type == TXNDEL:
                 handles = [handle.decode('utf-8') for handle, data in
-                            transaction[(obj_type, trans_type)]]
+                           transaction[(obj_type, trans_type)]]
             else:
                 handles = [handle.decode('utf-8') for handle, data in
-                            transaction[(obj_type, trans_type)]
-                            if (handle, None) not in transaction[(obj_type,
-                                                                  TXNDEL)]]
+                           transaction[(obj_type, trans_type)]
+                           if (handle, None) not in transaction[(obj_type,
+                                                                 TXNDEL)]]
             if handles:
-                self.emit(obj + suffix, (handles, ))
+                self.emit(KEY_TO_NAME_MAP[obj_type] +
+                          ['-add', '-update', '-delete'][trans_type],
+                          (handles, ))
 
     def transaction_abort(self, transaction):
         """
@@ -2332,6 +2167,8 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
             upgrade.gramps_upgrade_17(self)
         if version < 18:
             upgrade.gramps_upgrade_18(self)
+        if version < 19:
+            upgrade.gramps_upgrade_19(self)
 
             self.reset()
             self.set_total(6)
@@ -2368,7 +2205,7 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
         else:
             _LOG.debug("Failed to set autoremove flag")
 
-    def write_version(self, name):
+    def _write_version(self, name):
         """Write version number for a newly created DB."""
         full_name = os.path.abspath(name)
 
@@ -2426,11 +2263,6 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
             version = str(_DBVERSION)
             version_file.write(version)
 
-        versionpath = os.path.join(name, str(DBBACKEND))
-        _LOG.debug("Write database backend file to 'bsddb'")
-        with open(versionpath, "w") as version_file:
-            version_file.write("bsddb")
-
         self.metadata.close()
         self.env.close()
 
@@ -2459,7 +2291,6 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
         else:
             bsddb_version = _("Unknown")
         return {
-            _("DB-API version"): "n/a",
             _("Number of people"): self.get_number_of_people(),
             _("Number of families"): self.get_number_of_families(),
             _("Number of sources"): self.get_number_of_sources(),
@@ -2470,44 +2301,12 @@ class DbBsddb(DbBsddbRead, DbWriteBase, UpdateCallback):
             _("Number of repositories"): self.get_number_of_repositories(),
             _("Number of notes"): self.get_number_of_notes(),
             _("Number of tags"): self.get_number_of_tags(),
-            _("Data version"): schema_version,
-            _("Database db version"): bsddb_version,
+            _("Schema version"): schema_version,
+            _("Database version"): bsddb_version,
         }
 
 def _mkname(path, name):
     return os.path.join(path, name + DBEXT)
-
-def clear_lock_file(name):
-    try:
-        os.unlink(os.path.join(name, DBLOCKFN))
-    except OSError:
-        return
-
-def write_lock_file(name):
-    if not os.path.isdir(name):
-        os.mkdir(name)
-    with open(os.path.join(name, DBLOCKFN), "w", encoding='utf8') as f:
-        if win():
-            user = get_env_var('USERNAME')
-            host = get_env_var('USERDOMAIN')
-            if host is None:
-                host = ""
-        else:
-            host = os.uname()[1]
-            # An ugly workaround for os.getlogin() issue with Konsole
-            try:
-                user = os.getlogin()
-            except:
-                # not win, so don't need get_env_var.
-                # under cron getlogin() throws and there is no USER.
-                user = os.environ.get('USER', 'noUSER')
-        if host:
-            text = "%s@%s" % (user, host)
-        else:
-            text = user
-        # Save only the username and host, so the massage can be
-        # printed with correct locale in DbManager.py when a lock is found
-        f.write(text)
 
 def upgrade_researcher(owner_data):
     """

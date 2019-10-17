@@ -53,7 +53,7 @@ class MediaPreview(Gramplet):
         return self.top
 
     def db_changed(self):
-        self.dbstate.db.connect('media-update', self.update)
+        self.connect(self.dbstate.db, 'media-update', self.update)
         self.connect_signal('Media', self.update)
 
     def update_has_data(self):
@@ -77,6 +77,7 @@ class MediaPreview(Gramplet):
                 self.set_has_data(False)
             self.top.show()
         else:
+            self.photo.set_image(None)
             self.set_has_data(False)
 
     def load_image(self, media):

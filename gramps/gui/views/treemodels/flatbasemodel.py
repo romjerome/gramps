@@ -73,6 +73,7 @@ from gi.repository import Gtk
 from gramps.gen.filters import SearchFilter, ExactSearchFilter
 from gramps.gen.const import GRAMPS_LOCALE as glocale
 from .basemodel import BaseModel
+from ...user import User
 
 #-------------------------------------------------------------------------
 #
@@ -310,10 +311,7 @@ class FlatNodeMap:
         :type path: integer
         :return handle: unicode form of the handle
         """
-        handle = self._index2hndl[self.real_index(path)][1]
-        if not isinstance(handle, str):
-            handle = handle.decode('utf-8')
-        return handle
+        return self._index2hndl[self.real_index(path)][1]
 
     def iter_next(self, iter):
         """
@@ -456,6 +454,8 @@ class FlatBaseModel(GObject.GObject, Gtk.TreeModel, BaseModel):
         cput = time.clock()
         GObject.GObject.__init__(self)
         BaseModel.__init__(self)
+        self.uistate = uistate
+        self.user = User(parent=uistate.window, uistate=uistate)
         #inheriting classes must set self.map to obtain the data
         self.prev_handle = None
         self.prev_data = None
@@ -567,7 +567,7 @@ class FlatBaseModel(GObject.GObject, Gtk.TreeModel, BaseModel):
         # use cursor as a context manager
         with self.gen_cursor() as cursor:
             #loop over database and store the sort field, and the handle
-            srt_keys=[(self.sort_func(data), key.decode('utf8'))
+            srt_keys=[(self.sort_func(data), key)
                       for key, data in cursor]
             srt_keys.sort()
             return srt_keys
@@ -614,7 +614,8 @@ class FlatBaseModel(GObject.GObject, Gtk.TreeModel, BaseModel):
             if self.search:
                 ident = False
                 if ignore is None:
-                    dlist = self.search.apply(self.db, allkeys, tupleind=1)
+                    dlist = self.search.apply(self.db, allkeys, tupleind=1,
+                                              user=self.user)
                 else:
                     dlist = self.search.apply(self.db,
                                 [ k for k in allkeys if k[1] != ignore],
@@ -796,12 +797,7 @@ class FlatBaseModel(GObject.GObject, Gtk.TreeModel, BaseModel):
         val = self._get_value(handle, col)
         #print 'val is', val, type(val)
 
-        #GTK 3 should convert unicode objects automatically, but this
-        # gives wrong column values, so we convert for python 2.7
-        if not isinstance(val, str):
-            return val.encode('utf-8')
-        else:
-            return val
+        return val
 
     def do_iter_previous(self, iter):
         #print 'do_iter_previous'

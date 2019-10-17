@@ -44,12 +44,13 @@ import glob
 from . import (DbReadBase, DbWriteBase, DbUndo, DBLOGNAME, DBUNDOFN,
                KEY_TO_CLASS_MAP, REFERENCE_KEY, PERSON_KEY, FAMILY_KEY,
                CITATION_KEY, SOURCE_KEY, EVENT_KEY, MEDIA_KEY, PLACE_KEY,
-               REPOSITORY_KEY, NOTE_KEY, TAG_KEY)
+               REPOSITORY_KEY, NOTE_KEY, TAG_KEY, TXNADD, TXNUPD, TXNDEL,
+               KEY_TO_NAME_MAP, DBMODE_R, DBMODE_W)
+from .utils import write_lock_file, clear_lock_file
 from ..errors import HandleError
 from ..utils.callback import Callback
 from ..updatecallback import UpdateCallback
 from .bookmarks import DbBookmarks
-from . import exceptions
 
 from ..utils.id import create_id
 from ..lib.researcher import Researcher
@@ -132,6 +133,8 @@ class DbGenericUndo(DbUndo):
         transaction = txn
         db = self.db
         subitems = transaction.get_recnos()
+        # sigs[obj_type][trans_type]
+        sigs = [[[] for trans_type in range(3)] for key in range(11)]
 
         # Process all records in the transaction
         try:
@@ -144,14 +147,10 @@ class DbGenericUndo(DbUndo):
                     self.undo_reference(new_data, handle)
                 else:
                     self.undo_data(new_data, handle, key)
+                    sigs[key][trans_type].append(handle)
             # now emit the signals
-            for record_id in subitems:
-                (key, trans_type, handle, old_data, new_data) = \
-                        pickle.loads(self.undodb[record_id])
+            self.undo_sigs(sigs, False)
 
-                if key != REFERENCE_KEY:
-                    self.undo_signals(new_data, handle, key,
-                                      db.emit, SIGBASE[key])
             self.db._txn_commit()
         except:
             self.db._txn_abort()
@@ -183,6 +182,8 @@ class DbGenericUndo(DbUndo):
         transaction = txn
         db = self.db
         subitems = transaction.get_recnos(reverse=True)
+        # sigs[obj_type][trans_type]
+        sigs = [[[] for trans_type in range(3)] for key in range(11)]
 
         # Process all records in the transaction
         try:
@@ -195,14 +196,10 @@ class DbGenericUndo(DbUndo):
                     self.undo_reference(old_data, handle)
                 else:
                     self.undo_data(old_data, handle, key)
+                    sigs[key][trans_type].append(handle)
             # now emit the signals
-            for record_id in subitems:
-                (key, trans_type, handle, old_data, new_data) = \
-                        pickle.loads(self.undodb[record_id])
+            self.undo_sigs(sigs, True)
 
-                if key != REFERENCE_KEY:
-                    self.undo_signals(old_data, handle, key,
-                                      db.emit, SIGBASE[key])
             self.db._txn_commit()
         except:
             self.db._txn_abort()
@@ -248,29 +245,43 @@ class DbGenericUndo(DbUndo):
             sql = "DELETE FROM %s WHERE handle = ?" % table
             self.db.dbapi.execute(sql, [handle])
         else:
-            if self.db.has_handle(obj_key, handle):
+            if self.db._has_handle(obj_key, handle):
                 sql = "UPDATE %s SET blob_data = ? WHERE handle = ?" % table
                 self.db.dbapi.execute(sql, [pickle.dumps(data), handle])
             else:
                 sql = "INSERT INTO %s (handle, blob_data) VALUES (?, ?)" % table
                 self.db.dbapi.execute(sql, [handle, pickle.dumps(data)])
-            obj = self.db.get_table_func(cls)["class_func"].create(data)
+            obj = self.db._get_table_func(cls)["class_func"].create(data)
             self.db._update_secondary_values(obj)
 
-    def undo_signals(self, data, handle, obj_key, emit, signal_root):
+    def undo_sigs(self, sigs, undo):
         """
-        Helper method to undo/redo the changes made
+        Helper method to undo/redo the signals for changes made
+        We want to do deletes and adds first
+        Note that if 'undo' we swap emits
         """
-        cls = KEY_TO_CLASS_MAP[obj_key]
-        table = cls.lower()
-        if data is None:
-            emit(signal_root + '-delete', ([handle],))
-        else:
-            if self.db.has_handle(obj_key, handle):
-                signal = signal_root + '-update'
-            else:
-                signal = signal_root + '-add'
-            emit(signal, ([handle],))
+        for trans_type in [TXNDEL, TXNADD, TXNUPD]:
+            for obj_type in range(11):
+                handles = sigs[obj_type][trans_type]
+                if handles:
+                    if not undo and trans_type == TXNDEL \
+                            or undo and trans_type == TXNADD:
+                        typ = '-delete'
+                    else:
+                        # don't update a handle if its been deleted, and note
+                        # that 'deleted' handles are in the 'add' list if we
+                        # are undoing
+                        handles = [handle for handle in handles
+                                   if handle not in
+                                   sigs[obj_type][TXNADD if undo else TXNDEL]]
+                        if ((not undo) and trans_type == TXNADD) \
+                                or (undo and trans_type == TXNDEL):
+                            typ = '-add'
+                        else:   # TXNUPD
+                            typ = '-update'
+                    if handles:
+                        self.db.emit(KEY_TO_NAME_MAP[obj_type] + typ,
+                                     (handles,))
 
 class Cursor:
     def __init__(self, iterator):
@@ -518,7 +529,6 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
                 "del_func": self.remove_tag,
             }
         }
-        self.set_save_path(directory)
         self.readonly = False
         self.db_is_open = False
         self.name_formats = []
@@ -566,29 +576,60 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
         if directory:
             self.load(directory)
 
-    def _initialize(self, directory):
+    def _initialize(self, directory, username, password):
         """
         Initialize database backend.
         """
         raise NotImplementedError
 
-    def load(self, directory, callback=None, mode=None,
+    def __check_readonly(self, name):
+        """
+        Return True if we don't have read/write access to the database,
+        otherwise return False (that is, we DO have read/write access)
+        """
+        # In-memory databases always allow write access.
+        if name == ':memory:':
+            return False
+
+        # See if we write to the target directory at all?
+        if not os.access(name, os.W_OK):
+            return True
+
+        # See if we lack write access to the database file
+        path = os.path.join(name, 'sqlite.db')
+        if os.path.isfile(path) and not os.access(path, os.W_OK):
+            return True
+
+        # All tests passed.  Inform caller that we are NOT read only
+        return False
+
+    def load(self, directory, callback=None, mode=DBMODE_W,
              force_schema_upgrade=False,
              force_bsddb_upgrade=False,
              force_bsddb_downgrade=False,
              force_python_upgrade=False,
-             update=True):
+             update=True,
+             username=None,
+             password=None):
         """
         If update is False: then don't update any files
         """
-        db_schema_version = self.get_schema_version(directory)
-        current_schema_version = self.VERSION[0]
-        if db_schema_version != current_schema_version:
-            raise exceptions.DbVersionError(str(db_schema_version),
-                                            str(current_schema_version),
-                                            str(current_schema_version))
+        if self.__check_readonly(directory):
+            mode = DBMODE_R
+
+        self.readonly = mode == DBMODE_R
+
+        if not self.readonly and directory != ':memory:':
+            write_lock_file(directory)
+
         # run backend-specific code:
-        self._initialize(directory)
+        self._initialize(directory, username, password)
+
+        # We use the existence of the person table as a proxy for the database
+        # being new
+        if not self.dbapi.table_exists("person"):
+            self._create_schema()
+            self._set_metadata('version', str(self.VERSION[0]))
 
         # Load metadata
         self.name_formats = self._get_metadata('name_formats')
@@ -627,7 +668,8 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
         # surname list
         self.surname_list = self.get_surname_list()
 
-        self.set_save_path(directory)
+        self._set_save_path(directory)
+
         if self._directory:
             self.undolog = os.path.join(self._directory, DBUNDOFN)
         else:
@@ -663,7 +705,7 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
         Close the database.
         if update is False, don't change access times, etc.
         """
-        if self._directory:
+        if self._directory != ":memory:":
             if update:
                 # This is just a dummy file to indicate last modified time of
                 # the database for gramps.cli.clidbman:
@@ -671,7 +713,6 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
                 touch(filename)
 
                 # Save metadata
-                self._txn_begin()
                 self._set_metadata('name_formats', self.name_formats)
                 self._set_metadata('researcher', self.owner)
 
@@ -722,9 +763,14 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
                 self._set_metadata('omap_index', self.omap_index)
                 self._set_metadata('rmap_index', self.rmap_index)
                 self._set_metadata('nmap_index', self.nmap_index)
-                self._txn_commit()
 
             self._close()
+
+            try:
+                clear_lock_file(self.get_save_path())
+            except IOError:
+                pass
+
         self.db_is_open = False
         self._directory = None
 
@@ -756,14 +802,7 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
         """Return True when the file has a supported version."""
         return True
 
-    def get_schema_version(self, directory=None):
-        """
-        Get the version of the schema that the database was created
-        under. Assumes 18, if not found.
-        """
-        raise NotImplementedError
-
-    def get_table_func(self, table=None, func=None):
+    def _get_table_func(self, table=None, func=None):
         """
         Private implementation of get_table_func.
         """
@@ -774,17 +813,7 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
         elif func in self.__tables[table].keys():
             return self.__tables[table][func]
         else:
-            return super().get_table_func(table, func)
-
-    def get_table_names(self):
-        """Return a list of valid table names."""
-        return list(self.get_table_func())
-
-    def get_table_metadata(self, table_name):
-        """Return the metadata for a valid table name."""
-        if table_name in self.get_table_func():
-            return self.get_table_func(table_name)
-        return None
+            return None
 
     def _txn_begin(self):
         """
@@ -1007,7 +1036,7 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
         Helper function for find_next_<object>_gramps_id methods
         """
         index = prefix % map_index
-        while self.has_gramps_id(obj_key, index):
+        while self._has_gramps_id(obj_key, index):
             map_index += 1
             index = prefix % map_index
         map_index += 1
@@ -1109,7 +1138,7 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
     #
     ################################################################
 
-    def get_number_of(self, obj_key):
+    def _get_number_of(self, obj_key):
         """
         Return the number of objects currently in the database.
         """
@@ -1119,61 +1148,61 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
         """
         Return the number of people currently in the database.
         """
-        return self.get_number_of(PERSON_KEY)
+        return self._get_number_of(PERSON_KEY)
 
     def get_number_of_events(self):
         """
         Return the number of events currently in the database.
         """
-        return self.get_number_of(EVENT_KEY)
+        return self._get_number_of(EVENT_KEY)
 
     def get_number_of_places(self):
         """
         Return the number of places currently in the database.
         """
-        return self.get_number_of(PLACE_KEY)
+        return self._get_number_of(PLACE_KEY)
 
     def get_number_of_tags(self):
         """
         Return the number of tags currently in the database.
         """
-        return self.get_number_of(TAG_KEY)
+        return self._get_number_of(TAG_KEY)
 
     def get_number_of_families(self):
         """
         Return the number of families currently in the database.
         """
-        return self.get_number_of(FAMILY_KEY)
+        return self._get_number_of(FAMILY_KEY)
 
     def get_number_of_notes(self):
         """
         Return the number of notes currently in the database.
         """
-        return self.get_number_of(NOTE_KEY)
+        return self._get_number_of(NOTE_KEY)
 
     def get_number_of_citations(self):
         """
         Return the number of citations currently in the database.
         """
-        return self.get_number_of(CITATION_KEY)
+        return self._get_number_of(CITATION_KEY)
 
     def get_number_of_sources(self):
         """
         Return the number of sources currently in the database.
         """
-        return self.get_number_of(SOURCE_KEY)
+        return self._get_number_of(SOURCE_KEY)
 
     def get_number_of_media(self):
         """
         Return the number of media objects currently in the database.
         """
-        return self.get_number_of(MEDIA_KEY)
+        return self._get_number_of(MEDIA_KEY)
 
     def get_number_of_repositories(self):
         """
         Return the number of source repositories currently in the database.
         """
-        return self.get_number_of(REPOSITORY_KEY)
+        return self._get_number_of(REPOSITORY_KEY)
 
     ################################################################
     #
@@ -1181,7 +1210,7 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
     #
     ################################################################
 
-    def get_gramps_ids(self, obj_key):
+    def _get_gramps_ids(self, obj_key):
         """
         Return a list of Gramps IDs, one ID for each object in the
         database.
@@ -1193,63 +1222,63 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
         Return a list of Gramps IDs, one ID for each Person in the
         database.
         """
-        return self.get_gramps_ids(PERSON_KEY)
+        return self._get_gramps_ids(PERSON_KEY)
 
     def get_family_gramps_ids(self):
         """
         Return a list of Gramps IDs, one ID for each Family in the
         database.
         """
-        return self.get_gramps_ids(FAMILY_KEY)
+        return self._get_gramps_ids(FAMILY_KEY)
 
     def get_source_gramps_ids(self):
         """
         Return a list of Gramps IDs, one ID for each Source in the
         database.
         """
-        return self.get_gramps_ids(SOURCE_KEY)
+        return self._get_gramps_ids(SOURCE_KEY)
 
     def get_citation_gramps_ids(self):
         """
         Return a list of Gramps IDs, one ID for each Citation in the
         database.
         """
-        return self.get_gramps_ids(CITATION_KEY)
+        return self._get_gramps_ids(CITATION_KEY)
 
     def get_event_gramps_ids(self):
         """
         Return a list of Gramps IDs, one ID for each Event in the
         database.
         """
-        return self.get_gramps_ids(EVENT_KEY)
+        return self._get_gramps_ids(EVENT_KEY)
 
     def get_media_gramps_ids(self):
         """
         Return a list of Gramps IDs, one ID for each Media in the
         database.
         """
-        return self.get_gramps_ids(MEDIA_KEY)
+        return self._get_gramps_ids(MEDIA_KEY)
 
     def get_place_gramps_ids(self):
         """
         Return a list of Gramps IDs, one ID for each Place in the
         database.
         """
-        return self.get_gramps_ids(PLACE_KEY)
+        return self._get_gramps_ids(PLACE_KEY)
 
     def get_repository_gramps_ids(self):
         """
         Return a list of Gramps IDs, one ID for each Repository in the
         database.
         """
-        return self.get_gramps_ids(REPOSITORY_KEY)
+        return self._get_gramps_ids(REPOSITORY_KEY)
 
     def get_note_gramps_ids(self):
         """
         Return a list of Gramps IDs, one ID for each Note in the
         database.
         """
-        return self.get_gramps_ids(NOTE_KEY)
+        return self._get_gramps_ids(NOTE_KEY)
 
     ################################################################
     #
@@ -1257,135 +1286,46 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
     #
     ################################################################
 
-    def get_event_from_handle(self, handle):
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
+    def _get_from_handle(self, obj_key, obj_class, handle):
         if handle is None:
             raise HandleError('Handle is None')
         if not handle:
             raise HandleError('Handle is empty')
-        data = self.get_raw_event_data(handle)
+        data = self._get_raw_data(obj_key, handle)
         if data:
-            return Event.create(data)
+            return obj_class.create(data)
         else:
             raise HandleError('Handle %s not found' % handle)
+
+    def get_event_from_handle(self, handle):
+        return self._get_from_handle(EVENT_KEY, Event, handle)
 
     def get_family_from_handle(self, handle):
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
-        if handle is None:
-            raise HandleError('Handle is None')
-        if not handle:
-            raise HandleError('Handle is empty')
-        data = self.get_raw_family_data(handle)
-        if data:
-            return Family.create(data)
-        else:
-            raise HandleError('Handle %s not found' % handle)
+        return self._get_from_handle(FAMILY_KEY, Family, handle)
 
     def get_repository_from_handle(self, handle):
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
-        if handle is None:
-            raise HandleError('Handle is None')
-        if not handle:
-            raise HandleError('Handle is empty')
-        data = self.get_raw_repository_data(handle)
-        if data:
-            return Repository.create(data)
-        else:
-            raise HandleError('Handle %s not found' % handle)
+        return self._get_from_handle(REPOSITORY_KEY, Repository, handle)
 
     def get_person_from_handle(self, handle):
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
-        if handle is None:
-            raise HandleError('Handle is None')
-        if not handle:
-            raise HandleError('Handle is empty')
-        data = self.get_raw_person_data(handle)
-        if data:
-            return Person.create(data)
-        else:
-            raise HandleError('Handle %s not found' % handle)
+        return self._get_from_handle(PERSON_KEY, Person, handle)
 
     def get_place_from_handle(self, handle):
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
-        if handle is None:
-            raise HandleError('Handle is None')
-        if not handle:
-            raise HandleError('Handle is empty')
-        data = self.get_raw_place_data(handle)
-        if data:
-            return Place.create(data)
-        else:
-            raise HandleError('Handle %s not found' % handle)
+        return self._get_from_handle(PLACE_KEY, Place, handle)
 
     def get_citation_from_handle(self, handle):
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
-        if handle is None:
-            raise HandleError('Handle is None')
-        if not handle:
-            raise HandleError('Handle is empty')
-        data = self.get_raw_citation_data(handle)
-        if data:
-            return Citation.create(data)
-        else:
-            raise HandleError('Handle %s not found' % handle)
+        return self._get_from_handle(CITATION_KEY, Citation, handle)
 
     def get_source_from_handle(self, handle):
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
-        if handle is None:
-            raise HandleError('Handle is None')
-        if not handle:
-            raise HandleError('Handle is empty')
-        data = self.get_raw_source_data(handle)
-        if data:
-            return Source.create(data)
-        else:
-            raise HandleError('Handle %s not found' % handle)
+        return self._get_from_handle(SOURCE_KEY, Source, handle)
 
     def get_note_from_handle(self, handle):
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
-        if handle is None:
-            raise HandleError('Handle is None')
-        if not handle:
-            raise HandleError('Handle is empty')
-        data = self.get_raw_note_data(handle)
-        if data:
-            return Note.create(data)
-        else:
-            raise HandleError('Handle %s not found' % handle)
+        return self._get_from_handle(NOTE_KEY, Note, handle)
 
     def get_media_from_handle(self, handle):
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
-        if handle is None:
-            raise HandleError('Handle is None')
-        if not handle:
-            raise HandleError('Handle is empty')
-        data = self.get_raw_media_data(handle)
-        if data:
-            return Media.create(data)
-        else:
-            raise HandleError('Handle %s not found' % handle)
+        return self._get_from_handle(MEDIA_KEY, Media, handle)
 
     def get_tag_from_handle(self, handle):
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
-        if handle is None:
-            raise HandleError('Handle is None')
-        if not handle:
-            raise HandleError('Handle is empty')
-        data = self.get_raw_tag_data(handle)
-        if data:
-            return Tag.create(data)
-        else:
-            raise HandleError('Handle %s not found' % handle)
+        return self._get_from_handle(TAG_KEY, Tag, handle)
 
     ################################################################
     #
@@ -1435,41 +1375,41 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
     #
     ################################################################
 
-    def has_handle(self, obj_key, handle):
+    def _has_handle(self, obj_key, handle):
         """
         Return True if the handle exists in the database.
         """
         raise NotImplementedError
 
     def has_person_handle(self, handle):
-        return self.has_handle(PERSON_KEY, handle)
+        return self._has_handle(PERSON_KEY, handle)
 
     def has_family_handle(self, handle):
-        return self.has_handle(FAMILY_KEY, handle)
+        return self._has_handle(FAMILY_KEY, handle)
 
     def has_source_handle(self, handle):
-        return self.has_handle(SOURCE_KEY, handle)
+        return self._has_handle(SOURCE_KEY, handle)
 
     def has_citation_handle(self, handle):
-        return self.has_handle(CITATION_KEY, handle)
+        return self._has_handle(CITATION_KEY, handle)
 
     def has_event_handle(self, handle):
-        return self.has_handle(EVENT_KEY, handle)
+        return self._has_handle(EVENT_KEY, handle)
 
     def has_media_handle(self, handle):
-        return self.has_handle(MEDIA_KEY, handle)
+        return self._has_handle(MEDIA_KEY, handle)
 
     def has_place_handle(self, handle):
-        return self.has_handle(PLACE_KEY, handle)
+        return self._has_handle(PLACE_KEY, handle)
 
     def has_repository_handle(self, handle):
-        return self.has_handle(REPOSITORY_KEY, handle)
+        return self._has_handle(REPOSITORY_KEY, handle)
 
     def has_note_handle(self, handle):
-        return self.has_handle(NOTE_KEY, handle)
+        return self._has_handle(NOTE_KEY, handle)
 
     def has_tag_handle(self, handle):
-        return self.has_handle(TAG_KEY, handle)
+        return self._has_handle(TAG_KEY, handle)
 
     ################################################################
     #
@@ -1477,35 +1417,35 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
     #
     ################################################################
 
-    def has_gramps_id(self, obj_key, gramps_id):
+    def _has_gramps_id(self, obj_key, gramps_id):
         raise NotImplementedError
 
     def has_person_gramps_id(self, gramps_id):
-        return self.has_gramps_id(PERSON_KEY, gramps_id)
+        return self._has_gramps_id(PERSON_KEY, gramps_id)
 
     def has_family_gramps_id(self, gramps_id):
-        return self.has_gramps_id(FAMILY_KEY, gramps_id)
+        return self._has_gramps_id(FAMILY_KEY, gramps_id)
 
     def has_source_gramps_id(self, gramps_id):
-        return self.has_gramps_id(SOURCE_KEY, gramps_id)
+        return self._has_gramps_id(SOURCE_KEY, gramps_id)
 
     def has_citation_gramps_id(self, gramps_id):
-        return self.has_gramps_id(CITATION_KEY, gramps_id)
+        return self._has_gramps_id(CITATION_KEY, gramps_id)
 
     def has_event_gramps_id(self, gramps_id):
-        return self.has_gramps_id(EVENT_KEY, gramps_id)
+        return self._has_gramps_id(EVENT_KEY, gramps_id)
 
     def has_media_gramps_id(self, gramps_id):
-        return self.has_gramps_id(MEDIA_KEY, gramps_id)
+        return self._has_gramps_id(MEDIA_KEY, gramps_id)
 
     def has_place_gramps_id(self, gramps_id):
-        return self.has_gramps_id(PLACE_KEY, gramps_id)
+        return self._has_gramps_id(PLACE_KEY, gramps_id)
 
     def has_repository_gramps_id(self, gramps_id):
-        return self.has_gramps_id(REPOSITORY_KEY, gramps_id)
+        return self._has_gramps_id(REPOSITORY_KEY, gramps_id)
 
     def has_note_gramps_id(self, gramps_id):
-        return self.has_gramps_id(NOTE_KEY, gramps_id)
+        return self._has_gramps_id(NOTE_KEY, gramps_id)
 
     ################################################################
     #
@@ -1626,7 +1566,7 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
         """
         Iterate over items in a class.
         """
-        cursor = self.get_table_func(class_.__name__, "cursor_func")
+        cursor = self._get_table_func(class_.__name__, "cursor_func")
         for data in cursor():
             yield class_.create(data[1])
 
@@ -1741,41 +1681,41 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
     #
     ################################################################
 
-    def get_raw_data(self, obj_key, handle):
+    def _get_raw_data(self, obj_key, handle):
         """
         Return raw (serialized and pickled) object from handle.
         """
         raise NotImplementedError
 
     def get_raw_person_data(self, handle):
-        return self.get_raw_data(PERSON_KEY, handle)
+        return self._get_raw_data(PERSON_KEY, handle)
 
     def get_raw_family_data(self, handle):
-        return self.get_raw_data(FAMILY_KEY, handle)
+        return self._get_raw_data(FAMILY_KEY, handle)
 
     def get_raw_source_data(self, handle):
-        return self.get_raw_data(SOURCE_KEY, handle)
+        return self._get_raw_data(SOURCE_KEY, handle)
 
     def get_raw_citation_data(self, handle):
-        return self.get_raw_data(CITATION_KEY, handle)
+        return self._get_raw_data(CITATION_KEY, handle)
 
     def get_raw_event_data(self, handle):
-        return self.get_raw_data(EVENT_KEY, handle)
+        return self._get_raw_data(EVENT_KEY, handle)
 
     def get_raw_media_data(self, handle):
-        return self.get_raw_data(MEDIA_KEY, handle)
+        return self._get_raw_data(MEDIA_KEY, handle)
 
     def get_raw_place_data(self, handle):
-        return self.get_raw_data(PLACE_KEY, handle)
+        return self._get_raw_data(PLACE_KEY, handle)
 
     def get_raw_repository_data(self, handle):
-        return self.get_raw_data(REPOSITORY_KEY, handle)
+        return self._get_raw_data(REPOSITORY_KEY, handle)
 
     def get_raw_note_data(self, handle):
-        return self.get_raw_data(NOTE_KEY, handle)
+        return self._get_raw_data(NOTE_KEY, handle)
 
     def get_raw_tag_data(self, handle):
-        return self.get_raw_data(TAG_KEY, handle)
+        return self._get_raw_data(TAG_KEY, handle)
 
     ################################################################
     #
@@ -1819,116 +1759,67 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
     #
     ################################################################
 
-    def add_person(self, person, trans, set_gid=True):
-        if not person.handle:
-            person.handle = create_id()
-        if (not person.gramps_id) and set_gid:
-            person.gramps_id = self.find_next_person_gramps_id()
-        if not person.gramps_id:
+    def _add_base(self, obj, trans, set_gid, find_func, commit_func):
+        if not obj.handle:
+            obj.handle = create_id()
+        if (not obj.gramps_id) and set_gid:
+            obj.gramps_id = find_func()
+        if (not obj.gramps_id):
             # give it a random value for the moment:
-            person.gramps_id = str(random.random())
-        self.commit_person(person, trans)
-        return person.handle
+            obj.gramps_id = str(random.random())
+        commit_func(obj, trans)
+        return obj.handle
+
+    def add_person(self, person, trans, set_gid=True):
+        return self._add_base(person, trans, set_gid,
+                              self.find_next_person_gramps_id,
+                              self.commit_person)
 
     def add_family(self, family, trans, set_gid=True):
-        if not family.handle:
-            family.handle = create_id()
-        if (not family.gramps_id) and set_gid:
-            family.gramps_id = self.find_next_family_gramps_id()
-        if not family.gramps_id:
-            # give it a random value for the moment:
-            family.gramps_id = str(random.random())
-        self.commit_family(family, trans)
-        return family.handle
-
-    def add_citation(self, citation, trans, set_gid=True):
-        if not citation.handle:
-            citation.handle = create_id()
-        if (not citation.gramps_id) and set_gid:
-            citation.gramps_id = self.find_next_citation_gramps_id()
-        if not citation.gramps_id:
-            # give it a random value for the moment:
-            citation.gramps_id = str(random.random())
-        self.commit_citation(citation, trans)
-        return citation.handle
-
-    def add_source(self, source, trans, set_gid=True):
-        if not source.handle:
-            source.handle = create_id()
-        if (not source.gramps_id) and set_gid:
-            source.gramps_id = self.find_next_source_gramps_id()
-        if not source.gramps_id:
-            # give it a random value for the moment:
-            source.gramps_id = str(random.random())
-        self.commit_source(source, trans)
-        return source.handle
-
-    def add_repository(self, repository, trans, set_gid=True):
-        if not repository.handle:
-            repository.handle = create_id()
-        if (not repository.gramps_id) and set_gid:
-            repository.gramps_id = self.find_next_repository_gramps_id()
-        if not repository.gramps_id:
-            # give it a random value for the moment:
-            repository.gramps_id = str(random.random())
-        self.commit_repository(repository, trans)
-        return repository.handle
-
-    def add_note(self, note, trans, set_gid=True):
-        if not note.handle:
-            note.handle = create_id()
-        if (not note.gramps_id) and set_gid:
-            note.gramps_id = self.find_next_note_gramps_id()
-        if not note.gramps_id:
-            # give it a random value for the moment:
-            note.gramps_id = str(random.random())
-        self.commit_note(note, trans)
-        return note.handle
-
-    def add_place(self, place, trans, set_gid=True):
-        if not place.handle:
-            place.handle = create_id()
-        if (not place.gramps_id) and set_gid:
-            place.gramps_id = self.find_next_place_gramps_id()
-        if not place.gramps_id:
-            # give it a random value for the moment:
-            place.gramps_id = str(random.random())
-        self.commit_place(place, trans)
-        return place.handle
+        return self._add_base(family, trans, set_gid,
+                              self.find_next_family_gramps_id,
+                              self.commit_family)
 
     def add_event(self, event, trans, set_gid=True):
-        if not event.handle:
-            event.handle = create_id()
-        if (not event.gramps_id) and set_gid:
-            event.gramps_id = self.find_next_event_gramps_id()
-        if not event.gramps_id:
-            # give it a random value for the moment:
-            event.gramps_id = str(random.random())
-        self.commit_event(event, trans)
-        return event.handle
+        return self._add_base(event, trans, set_gid,
+                              self.find_next_event_gramps_id,
+                              self.commit_event)
+
+    def add_place(self, place, trans, set_gid=True):
+        return self._add_base(place, trans, set_gid,
+                              self.find_next_place_gramps_id,
+                              self.commit_place)
+
+    def add_repository(self, repository, trans, set_gid=True):
+        return self._add_base(repository, trans, set_gid,
+                              self.find_next_repository_gramps_id,
+                              self.commit_repository)
+
+    def add_source(self, source, trans, set_gid=True):
+        return self._add_base(source, trans, set_gid,
+                              self.find_next_source_gramps_id,
+                              self.commit_source)
+
+    def add_citation(self, citation, trans, set_gid=True):
+        return self._add_base(citation, trans, set_gid,
+                              self.find_next_citation_gramps_id,
+                              self.commit_citation)
+
+    def add_media(self, media, trans, set_gid=True):
+        return self._add_base(media, trans, set_gid,
+                              self.find_next_media_gramps_id,
+                              self.commit_media)
+
+    def add_note(self, note, trans, set_gid=True):
+        return self._add_base(note, trans, set_gid,
+                              self.find_next_note_gramps_id,
+                              self.commit_note)
 
     def add_tag(self, tag, trans):
         if not tag.handle:
             tag.handle = create_id()
         self.commit_tag(tag, trans)
         return tag.handle
-
-    def add_media(self, obj, transaction, set_gid=True):
-        """
-        Add a Media to the database, assigning internal IDs if they have
-        not already been defined.
-
-        If not set_gid, then gramps_id is not set.
-        """
-        if not obj.handle:
-            obj.handle = create_id()
-        if (not obj.gramps_id) and set_gid:
-            obj.gramps_id = self.find_next_media_gramps_id()
-        if not obj.gramps_id:
-            # give it a random value for the moment:
-            obj.gramps_id = str(random.random())
-        self.commit_media(obj, transaction)
-        return obj.handle
 
     ################################################################
     #
@@ -2506,39 +2397,10 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
         self.emit('note-rebuild')
         self.emit('tag-rebuild')
 
-    def get_from_name_and_handle(self, table_name, handle):
-        """
-        Returns a gen.lib object (or None) given table_name and
-        handle.
-
-        Examples:
-
-        >>> self.get_from_name_and_handle("Person", "a7ad62365bc652387008")
-        >>> self.get_from_name_and_handle("Media", "c3434653675bcd736f23")
-        """
-        if table_name in self.get_table_func() and handle:
-            return self.get_table_func(table_name, "handle_func")(handle)
-        return None
-
-    def get_from_name_and_gramps_id(self, table_name, gramps_id):
-        """
-        Returns a gen.lib object (or None) given table_name and
-        Gramps ID.
-
-        Examples:
-
-        >>> self.get_from_name_and_gramps_id("Person", "I00002")
-        >>> self.get_from_name_and_gramps_id("Family", "F056")
-        >>> self.get_from_name_and_gramps_id("Media", "M00012")
-        """
-        if table_name in self.get_table_func():
-            return self.get_table_func(table_name, "gramps_id_func")(gramps_id)
-        return None
-
     def get_save_path(self):
         return self._directory
 
-    def set_save_path(self, directory):
+    def _set_save_path(self, directory):
         self._directory = directory
         if directory:
             self.full_name = os.path.abspath(self._directory)
@@ -2590,7 +2452,7 @@ class DbGeneric(DbWriteBase, DbReadBase, UpdateCallback, Callback):
             _("Number of repositories"): self.get_number_of_repositories(),
             _("Number of notes"): self.get_number_of_notes(),
             _("Number of tags"): self.get_number_of_tags(),
-            _("Data version"): ".".join([str(v) for v in self.VERSION]),
+            _("Schema version"): ".".join([str(v) for v in self.VERSION]),
         }
 
     def _order_by_person_key(self, person):

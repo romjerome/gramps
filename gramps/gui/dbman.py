@@ -285,8 +285,8 @@ class DbManager(CLIDbManager, ManagedWindow):
         # Get the current selection
         store, node = selection.get_selected()
 
-        if not __debug__:
-            self.convert_btn.set_visible(False)
+        if not _RCS_FOUND: # it's not in Windows
+            self.rcs_btn.set_visible(False)
 
         # if nothing is selected
         if not node:
@@ -315,10 +315,10 @@ class DbManager(CLIDbManager, ManagedWindow):
                 self.rcs_btn.set_sensitive(True)
         else:
             self.close_btn.set_sensitive(False)
-            backend_name = self.get_backend_name_from_dbid("bsddb")
+            dbid = config.get('database.backend')
+            backend_type = self.get_backend_name_from_dbid(dbid)
             if (store.get_value(node, ICON_COL) in [None, ""] and
-                    store.get_value(node,
-                                    BACKEND_COL).startswith(backend_name)):
+                    store.get_value(node, BACKEND_COL) != backend_type):
                 self.convert_btn.set_sensitive(True)
             else:
                 self.convert_btn.set_sensitive(False)
@@ -422,9 +422,7 @@ class DbManager(CLIDbManager, ManagedWindow):
         for items in self.current_names:
             data = list(items[:8])
             backend_type = self.get_backend_name_from_dbid(data[BACKEND_COL])
-            version = str(".".join([str(v) for v in items[8]]))
-            node = self.model.append(None, data[:-1] + [backend_type + ", "
-                                                        + version])
+            node = self.model.append(None, data[:-1] + [backend_type])
             # For already loaded database, set current_node:
             if self.dbstate.is_open() and \
                 self.dbstate.db.get_save_path() == data[1]:
@@ -434,7 +432,7 @@ class DbManager(CLIDbManager, ManagedWindow):
                 last_accessed_node = node
             for rdata in find_revisions(os.path.join(items[1], ARCHIVE_V)):
                 data = [rdata[2], rdata[0], items[1], rdata[1], 0, False, "",
-                        backend_type + ", " + version]
+                        backend_type]
                 self.model.append(node, data)
         if self._current_node is None:
             self._current_node = last_accessed_node
@@ -464,6 +462,7 @@ class DbManager(CLIDbManager, ManagedWindow):
         or the path and name if something has been selected
         """
         self.show()
+        self.__update_buttons(self.selection)
         while True:
             value = self.top.run()
             if value == Gtk.ResponseType.OK:
@@ -558,7 +557,7 @@ class DbManager(CLIDbManager, ManagedWindow):
         if len(new_text) > 0:
             node = self.model.get_iter(path)
             old_text = self.model.get_value(node, NAME_COL)
-            if self.model.get_value(node, ICON_COL) not in [None, ""]:
+            if self.model.get_value(node, ICON_COL) == 'document-open':
                 # this database is loaded. We must change the title
                 # in case we change the name several times before quitting,
                 # we save the first old name.
@@ -647,7 +646,8 @@ class DbManager(CLIDbManager, ManagedWindow):
         else:
             base_path = self.dbstate.db.get_save_path()
             archive = os.path.join(base_path, ARCHIVE)
-            check_in(self.dbstate.db, archive, self.user, self.__start_cursor)
+            _check_in(self.dbstate.db, archive, self.user,
+                      self.__start_cursor, parent=self.window)
             self.__end_cursor()
 
         self.__populate()
@@ -658,11 +658,13 @@ class DbManager(CLIDbManager, ManagedWindow):
         Create a new database, then extracts a revision from RCS and
         imports it into the db
         """
-        new_path, newname = self._create_new_db("%s : %s" % (parent_name, name))
+        dbid = config.get('database.backend')
+        new_path, newname = self._create_new_db("%s : %s" % (parent_name, name),
+                                                dbid=dbid)
 
         self.__start_cursor(_("Extracting archive..."))
 
-        dbase = make_database("bsddb")
+        dbase = make_database(dbid)
         dbase.load(new_path)
 
         self.__start_cursor(_("Importing archive..."))
@@ -715,7 +717,7 @@ class DbManager(CLIDbManager, ManagedWindow):
         node = self.model.get_iter(path)
         filename = self.model.get_value(node, FILE_COL)
         try:
-            with open(filename, "r") as name_file:
+            with open(filename, "r", encoding='utf-8') as name_file:
                 file_name_to_delete = name_file.read()
             remove_filename(file_name_to_delete)
             directory = self.data_to_delete[1]
@@ -761,21 +763,23 @@ class DbManager(CLIDbManager, ManagedWindow):
 
     def __convert_db_ask(self, obj):
         """
-        Ask to convert a closed BSDDB tree into a new DB-API
-        tree.
+        Ask to convert a closed family tree into the default database backend.
         """
         store, node = self.selection.get_selected()
         name = store[node][0]
         dirname = store[node][1]
+        dbid = config.get('database.backend')
+        backend_type = self.get_backend_name_from_dbid(dbid)
         QuestionDialog(
             _("Convert the '%s' database?") % name,
-            _("You wish to convert this database into the new DB-API format?"),
+            _("Do you wish to convert this family tree into a "
+              "%(database_type)s database?") % {'database_type': backend_type},
             _("Convert"),
             lambda: self.__convert_db(name, dirname), parent=self.top)
 
     def __convert_db(self, name, dirname):
         """
-        Actually convert the db from BSDDB to DB-API.
+        Actually convert the family tree into the default database backend.
         """
         try:
             db = open_database(name)
@@ -806,10 +810,11 @@ class DbManager(CLIDbManager, ManagedWindow):
         while self.existing_name(new_text):
             count += 1
             new_text = "%s %s" % (name, _("(Converted #%d)") % count)
-        new_path, newname = self._create_new_db(new_text, edit_entry=False)
+        dbid = config.get('database.backend')
+        new_path, newname = self._create_new_db(new_text, dbid=dbid,
+                                                edit_entry=False)
         ## Create a new database of correct type:
-        dbase = make_database("dbapi")
-        dbase.write_version(new_path)
+        dbase = make_database(dbid)
         dbase.load(new_path)
         ## import from XML
         import_function = None
@@ -924,11 +929,7 @@ class DbManager(CLIDbManager, ManagedWindow):
                 fname = os.path.join(dirname, filename)
                 os.unlink(fname)
 
-        newdb = make_database("bsddb")
-        newdb.write_version(dirname)
-
         dbase = make_database("bsddb")
-        dbase.set_save_path(dirname)
         dbase.load(dirname, None)
 
         self.__start_cursor(_("Rebuilding database from backup files"))
@@ -979,13 +980,6 @@ class DbManager(CLIDbManager, ManagedWindow):
                             str(msg),
                             parent=self.top)
         self.new_btn.set_sensitive(True)
-
-    def get_backend_name_from_dbid(self, dbid):
-        pmgr = GuiPluginManager.get_instance()
-        for plugin in pmgr.get_reg_databases():
-            if plugin.id == dbid:
-                return plugin._name
-        return _("Unknown")
 
     def _create_new_db(self, title=None, create_db=True, dbid=None,
                        edit_entry=True):
@@ -1118,7 +1112,7 @@ def check_out(dbase, rev, path, user):
     rdr(dbase, xml_file, user)
     os.unlink(xml_file)
 
-def check_in(dbase, filename, user, cursor_func=None):
+def _check_in(dbase, filename, user, cursor_func=None, parent=None):
     """
     Checks in the specified file into RCS
     """
@@ -1129,6 +1123,7 @@ def check_in(dbase, filename, user, cursor_func=None):
     glade = Glade(toplevel='comment')
     top = glade.toplevel
     text = glade.get_object('description')
+    top.set_transient_for(parent)
     top.run()
     comment = text.get_text()
     top.destroy()

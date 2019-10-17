@@ -68,6 +68,7 @@ _LOG = logging.getLogger(DBLOGNAME)
 #-------------------------------------------------------------------------
 DEFAULT_TITLE = _("Family Tree")
 NAME_FILE = "name.txt"
+BACKEND_FILE = "database.txt"
 META_NAME = "meta_data.db"
 
 #-------------------------------------------------------------------------
@@ -171,11 +172,18 @@ class CLIDbManager:
             retval = {_("Unavailable"): "locked"}
         retval.update({_("Family Tree"): name,
                        _("Path"): dirpath,
-                       _("Database"): dbid,
+                       _("Database"): self.get_backend_name_from_dbid(dbid),
                        _("Last accessed"): time_val(dirpath)[1],
                        _("Locked?"): self.is_locked(dirpath),
                       })
         return retval
+
+    def get_backend_name_from_dbid(self, dbid):
+        pmgr = BasePluginManager.get_instance()
+        for plugin in pmgr.get_reg_databases():
+            if plugin.id == dbid:
+                return plugin._name
+        return _("Unknown")
 
     def print_family_tree_summaries(self, database_names=None):
         """
@@ -184,7 +192,7 @@ class CLIDbManager:
         print(_('Gramps Family Trees:'))
         for item in self.current_names:
             (name, dirpath, path_name, last,
-             tval, enable, stock_id, backend_type, version) = item
+             tval, enable, stock_id, backend_type) = item
             if (database_names is None or
                     any([(re.match("^" + dbname + "$", name) or
                           dbname == name)
@@ -206,7 +214,7 @@ class CLIDbManager:
         summary_list = []
         for item in self.current_names:
             (name, dirpath, path_name, last,
-             tval, enable, stock_id, backend_type, version) = item
+             tval, enable, stock_id, backend_type) = item
             if (database_names is None or
                     any([(re.match("^" + dbname + "$", name) or
                           dbname == name)
@@ -233,15 +241,6 @@ class CLIDbManager:
                         backend_type = file.read()
                 except:
                     backend_type = "bsddb"
-                try:
-                    with open(os.path.join(dirpath, "bdbversion.txt")) as file:
-                        version = file.read()
-                except:
-                    version = "(0, 0, 0)"
-                try:
-                    version = ast.literal_eval(version)
-                except:
-                    version = (0, 0, 0)
                 if os.path.isfile(path_name):
                     with open(path_name, 'r', encoding='utf8') as file:
                         name = file.readline().strip()
@@ -255,7 +254,7 @@ class CLIDbManager:
 
                     self.current_names.append(
                         (name, os.path.join(dbdir, dpath), path_name,
-                         last, tval, enable, stock_id, backend_type, version))
+                         last, tval, enable, stock_id, backend_type))
 
         self.current_names.sort()
 
@@ -305,11 +304,13 @@ class CLIDbManager:
             name_file.write(title)
 
         if create_db:
-            # write the version number into metadata
             if dbid is None:
-                dbid = "bsddb"
+                dbid = config.get('database.backend')
             newdb = make_database(dbid)
-            newdb.write_version(new_path)
+
+        backend_path = os.path.join(new_path, BACKEND_FILE)
+        with open(backend_path, "w", encoding='utf8') as backend_file:
+            backend_file.write(dbid)
 
         (tval, last) = time_val(new_path)
 
@@ -357,15 +358,6 @@ class CLIDbManager:
                     # write locally:
                     temp_fp.write(data)
                     url_fp.close()
-                    from  gramps.gen.db.dbconst import BDBVERSFN
-                    # name not set
-                    (name, ext) = os.path.splitext(os.path.basename(filename))
-                    versionpath = os.path.join(name, BDBVERSFN)
-                    # dbase not set
-                    dbase = make_database("bsddb")
-                    _LOG.debug("Write bsddb version %s", str(dbase.version()))
-                    with open(versionpath, "w") as version_file:
-                        version_file.write(str(dbase.version()))
                     temp_fp.close()
 
         (name, ext) = os.path.splitext(os.path.basename(filename))
@@ -374,13 +366,13 @@ class CLIDbManager:
         for plugin in pmgr.get_import_plugins():
             if format == plugin.get_extension():
 
-                new_path, name = self._create_new_db(name, edit_entry=False)
+                dbid = config.get('database.backend')
+                new_path, name = self._create_new_db(name, dbid=dbid,
+                                                     edit_entry=False)
 
                 # Create a new database
                 self.__start_cursor(_("Importing data..."))
 
-                ## Use bsddb, for now, because we assumed that above.
-                dbid = "bsddb" ## config.get('database.backend')
                 dbase = make_database(dbid)
                 dbase.load(new_path, user.callback)
 

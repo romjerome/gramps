@@ -103,7 +103,7 @@ class RelGraphReport(Report):
                      returning the list of filters.
         arrow      - Arrow styles for heads and tails.
         showfamily - Whether to show family nodes.
-        incid      - Whether to include IDs.
+        inc_id     - Whether to include IDs.
         url        - Whether to include URLs.
         inclimg    - Include images or not
         imgpos     - Image position, above/beside name
@@ -128,15 +128,16 @@ class RelGraphReport(Report):
         get_option_by_name = options.menu.get_option_by_name
         get_value = lambda name: get_option_by_name(name).get_value()
 
-        lang = menu.get_option_by_name('trans').get_value()
-        self._locale = self.set_locale(lang)
+        self.set_locale(menu.get_option_by_name('trans').get_value())
+
+        stdoptions.run_date_format_option(self, menu)
 
         stdoptions.run_private_data_option(self, menu)
         stdoptions.run_living_people_option(self, menu, self._locale)
         self.database = CacheProxyDb(self.database)
         self._db = self.database
 
-        self.includeid = get_value('incid')
+        self.includeid = get_value('inc_id')
         self.includeurl = get_value('url')
         self.includeimg = get_value('includeImages')
         self.imgpos = get_value('imageOnTheSide')
@@ -191,7 +192,8 @@ class RelGraphReport(Report):
 
     def write_report(self):
         person_handles = self._filter.apply(self._db,
-                                            self._db.iter_person_handles())
+                                            self._db.iter_person_handles(),
+                                            user=self._user)
 
         person_handles = self.sort_persons(person_handles)
 
@@ -290,14 +292,17 @@ class RelGraphReport(Report):
                 family = self._db.get_family_from_handle(fam_handle)
                 father_handle = family.get_father_handle()
                 mother_handle = family.get_mother_handle()
+                sibling = False
                 for child_ref in family.get_child_ref_list():
                     if child_ref.ref == person_handle:
                         frel = child_ref.frel
                         mrel = child_ref.mrel
-                        break
+                    elif child_ref.ref in person_dict:
+                        sibling = True
                 if (self.show_families and
-                        ((father_handle and father_handle in person_dict) or
-                         (mother_handle and mother_handle in person_dict))):
+                    ((father_handle and father_handle in person_dict) or
+                     (mother_handle and mother_handle in person_dict) or
+                     sibling)):
                     # Link to the family node if either parent is in graph
                     self.add_family_link(p_id, family, frel, mrel)
                 else:
@@ -379,6 +384,20 @@ class RelGraphReport(Report):
                         self.doc.add_link(p_id, family.get_gramps_id(), "",
                                           self.arrowheadstyle,
                                           self.arrowtailstyle)
+
+                # Output families where person is a sibling if another sibling
+                # is present
+                family_list = person.get_parent_family_handle_list()
+                for fam_handle in family_list:
+                    if fam_handle in families_done:
+                        continue
+                    family = self.database.get_family_from_handle(fam_handle)
+                    if family is None:
+                        continue
+                    for child_ref in family.get_child_ref_list():
+                        if child_ref.ref != person_handle:
+                            families_done.add(fam_handle)
+                            self.__add_family(fam_handle)
 
     def __add_family(self, fam_handle):
         """Add a node for a family and optionally link the spouses to it"""
@@ -564,11 +583,8 @@ class RelGraphReport(Report):
 
         # at the very least, the label must have the person's name
         p_name = self._name_display.display(person)
-        if self.use_html_output:
-            # avoid < and > in the name, as this is html text
-            label += p_name.replace('<', '&#60;').replace('>', '&#62;')
-        else:
-            label += p_name
+        p_name = p_name.replace('"', '&#34;')
+        label += p_name.replace('<', '&#60;').replace('>', '&#62;')
         p_id = person.get_gramps_id()
         if self.includeid == 1: # same line
             label += " (%s)" % p_id
@@ -655,7 +671,7 @@ class RelGraphReport(Report):
                             label += '%s' % desc
                         if place:
                             if date or desc:
-                                label += ', '
+                                label += self._(', ') # Arabic OK
                             label += '%s' % place
                         label += ')'
 
@@ -717,7 +733,8 @@ class RelGraphReport(Report):
             empty string
         """
         if event and self.event_choice in [2, 3, 5, 6, 7]:
-            return _pd.display_event(self._db, event)
+            place = _pd.display_event(self._db, event)
+            return place.replace('<', '&#60;').replace('>', '&#62;')
         return ''
 
 #------------------------------------------------------------------------
@@ -778,12 +795,7 @@ class RelGraphOptions(MenuReportOptions):
                                   "between women and men."))
         add_option("useroundedcorners", roundedcorners)
 
-        include_id = EnumeratedListOption(_('Gramps ID'), 0)
-        include_id.add_item(0, _('Do not include'))
-        include_id.add_item(1, _('Share an existing line'))
-        include_id.add_item(2, _('On a line of its own'))
-        include_id.set_help(_("Whether (and where) to include Gramps IDs"))
-        add_option("incid", include_id)
+        stdoptions.add_gramps_id_option(menu, category_name, ownline=True)
 
         ################################
         category_name = _("Report Options (2)")
@@ -799,7 +811,9 @@ class RelGraphOptions(MenuReportOptions):
 
         stdoptions.add_living_people_option(menu, category_name)
 
-        stdoptions.add_localization_option(menu, category_name)
+        locale_opt = stdoptions.add_localization_option(menu, category_name)
+
+        stdoptions.add_date_format_option(menu, category_name, locale_opt)
 
         ################################
         add_option = partial(menu.add_option, _("Include"))

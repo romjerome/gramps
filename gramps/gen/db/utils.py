@@ -39,8 +39,9 @@ import logging
 #------------------------------------------------------------------------
 from ..plug import BasePluginManager
 from ..const import PLUGINS_DIR, USER_PLUGINS
+from ..constfunc import win, get_env_var
 from ..config import config
-from .dbconst import DBLOGNAME
+from .dbconst import DBLOGNAME, DBLOCKFN
 
 #-------------------------------------------------------------------------
 #
@@ -129,8 +130,8 @@ def import_as_dict(filename, user, skp_imp_adds=True):
     """
     Import the filename into a InMemoryDB and return it.
     """
-    db = make_database("inmemorydb")
-    db.load(None)
+    db = make_database("sqlite")
+    db.load(":memory:")
     db.set_feature("skip-import-additions", skp_imp_adds)
     status = import_from_filename(db, filename, user)
     return db if status else None
@@ -179,3 +180,35 @@ def __index_surname(surn_list):
     else:
         surn = ""
     return surn
+
+def clear_lock_file(name):
+    try:
+        os.unlink(os.path.join(name, DBLOCKFN))
+    except OSError:
+        return
+
+def write_lock_file(name):
+    if not os.path.isdir(name):
+        os.mkdir(name)
+    with open(os.path.join(name, DBLOCKFN), "w", encoding='utf8') as f:
+        if win():
+            user = get_env_var('USERNAME')
+            host = get_env_var('USERDOMAIN')
+            if host is None:
+                host = ""
+        else:
+            host = os.uname()[1]
+            # An ugly workaround for os.getlogin() issue with Konsole
+            try:
+                user = os.getlogin()
+            except:
+                # not win, so don't need get_env_var.
+                # under cron getlogin() throws and there is no USER.
+                user = os.environ.get('USER', 'noUSER')
+        if host:
+            text = "%s@%s" % (user, host)
+        else:
+            text = user
+        # Save only the username and host, so the massage can be
+        # printed with correct locale in DbManager.py when a lock is found
+        f.write(text)

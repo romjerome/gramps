@@ -40,7 +40,13 @@ class CacheProxyDb:
         proxies.
         """
         self.db = database
-        self.clear_cache()
+        # Memory allocation is power of 2 where slots has to fit.
+        # LRU uses one extra slot in its work, so set max to 2^17-1
+        # otherwise we are just wasting memory
+        self.cache_handle = LRU(131071)
+
+    def __del__(self):
+        self.cache_handle.clear()
 
     def __getattr__(self, attr):
         """
@@ -57,15 +63,13 @@ class CacheProxyDb:
         if handle:
             del self.cache_handle[handle]
         else:
-            self.cache_handle = LRU(100000)
+            self.cache_handle.clear()
 
     def get_person_from_handle(self, handle):
         """
         Gets item from cache if it exists. Converts
         handles to string, for uniformity.
         """
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
         if handle not in self.cache_handle:
             self.cache_handle[handle] = self.db.get_person_from_handle(handle)
         return self.cache_handle[handle]
@@ -75,8 +79,6 @@ class CacheProxyDb:
         Gets item from cache if it exists. Converts
         handles to string, for uniformity.
         """
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
         if handle not in self.cache_handle:
             self.cache_handle[handle] = self.db.get_event_from_handle(handle)
         return self.cache_handle[handle]
@@ -86,8 +88,6 @@ class CacheProxyDb:
         Gets item from cache if it exists. Converts
         handles to string, for uniformity.
         """
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
         if handle not in self.cache_handle:
             self.cache_handle[handle] = self.db.get_family_from_handle(handle)
         return self.cache_handle[handle]
@@ -97,8 +97,6 @@ class CacheProxyDb:
         Gets item from cache if it exists. Converts
         handles to string, for uniformity.
         """
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
         if handle not in self.cache_handle:
             self.cache_handle[handle] = self.db.get_repository_from_handle(handle)
         return self.cache_handle[handle]
@@ -108,19 +106,6 @@ class CacheProxyDb:
         Gets item from cache if it exists. Converts
         handles to string, for uniformity.
         """
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
-        if handle not in self.cache_handle:
-            self.cache_handle[handle] = self.db.get_place_from_handle(handle)
-        return self.cache_handle[handle]
-
-    def get_place_from_handle(self, handle):
-        """
-        Gets item from cache if it exists. Converts
-        handles to string, for uniformity.
-        """
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
         if handle not in self.cache_handle:
             self.cache_handle[handle] = self.db.get_place_from_handle(handle)
         return self.cache_handle[handle]
@@ -130,8 +115,6 @@ class CacheProxyDb:
         Gets item from cache if it exists. Converts
         handles to string, for uniformity.
         """
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
         if handle not in self.cache_handle:
             self.cache_handle[handle] = self.db.get_citation_from_handle(handle)
         return self.cache_handle[handle]
@@ -141,8 +124,6 @@ class CacheProxyDb:
         Gets item from cache if it exists. Converts
         handles to string, for uniformity.
         """
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
         if handle not in self.cache_handle:
             self.cache_handle[handle] = self.db.get_source_from_handle(handle)
         return self.cache_handle[handle]
@@ -152,8 +133,6 @@ class CacheProxyDb:
         Gets item from cache if it exists. Converts
         handles to string, for uniformity.
         """
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
         if handle not in self.cache_handle:
             self.cache_handle[handle] = self.db.get_note_from_handle(handle)
         return self.cache_handle[handle]
@@ -163,8 +142,6 @@ class CacheProxyDb:
         Gets item from cache if it exists. Converts
         handles to string, for uniformity.
         """
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
         if handle not in self.cache_handle:
             self.cache_handle[handle] = self.db.get_media_from_handle(handle)
         return self.cache_handle[handle]
@@ -174,8 +151,6 @@ class CacheProxyDb:
         Gets item from cache if it exists. Converts
         handles to string, for uniformity.
         """
-        if isinstance(handle, bytes):
-            handle = str(handle, "utf-8")
         if handle not in self.cache_handle:
             self.cache_handle[handle] = self.db.get_tag_from_handle(handle)
         return self.cache_handle[handle]

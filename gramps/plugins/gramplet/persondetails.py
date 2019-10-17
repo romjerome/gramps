@@ -89,7 +89,7 @@ class PersonDetails(Gramplet):
         list(map(self.grid.remove, self.grid.get_children()))
 
     def db_changed(self):
-        self.dbstate.db.connect('person-update', self.update)
+        self.connect(self.dbstate.db, 'person-update', self.update)
 
     def active_changed(self, handle):
         self.update()
@@ -228,6 +228,7 @@ class PersonDetails(Gramplet):
             if attr.get_type() == attr_key:
                 values.append(attr.get_value())
         if values:
+            # translators: needed for Arabic, ignore otherwise
             self.add_row(attr_key, _(', ').join(values))
 
     def display_type(self, active_person, event_type):

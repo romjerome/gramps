@@ -2,6 +2,7 @@
 # Gramps - a GTK+/GNOME based genealogy program
 #
 # Copyright (C) 2004-2007  Donald N. Allingham
+# Copyright (C) 2017       Paul Franklin
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,11 +30,16 @@ Class handling language-specific selection for date parser and displayer.
 #-------------------------------------------------------------------------
 import logging
 
+#-------------------------------------------------------------------------
+#
+# Gramps modules
+#
+#-------------------------------------------------------------------------
 from ..const import GRAMPS_LOCALE as glocale
 _ = glocale.translation.sgettext
 # import prerequisites for localized handlers
 from ._datehandler import (LANG, LANG_SHORT, LANG_TO_PARSER, LANG_TO_DISPLAY,
-                          register_datehandler)
+                           locale_tformat, main_locale)
 from . import _datestrings
 
 # Import all the localized handlers
@@ -69,12 +75,13 @@ from . import _date_zh_TW
 # Initialize global parser
 try:
     if LANG in LANG_TO_PARSER:
-        parser = LANG_TO_PARSER[LANG]()
+        parser = LANG_TO_PARSER[LANG](plocale=glocale)
     else:
-        parser = LANG_TO_PARSER[LANG_SHORT]()
+        parser = LANG_TO_PARSER[LANG_SHORT](plocale=glocale)
 except:
-    logging.warning(_("Date parser for '%s' not available, using default") % LANG)
-    parser = LANG_TO_PARSER["C"]()
+    logging.warning(
+        _("Date parser for '%s' not available, using default") % LANG)
+    parser = LANG_TO_PARSER["C"](plocale=glocale)
 
 # Initialize global displayer
 try:
@@ -85,26 +92,32 @@ except:
 
 try:
     if LANG in LANG_TO_DISPLAY:
-        displayer = LANG_TO_DISPLAY[LANG](val)
+        displayer = LANG_TO_DISPLAY[LANG](val, blocale=glocale)
     else:
-        displayer = LANG_TO_DISPLAY[LANG_SHORT](val)
+        displayer = LANG_TO_DISPLAY[LANG_SHORT](val, blocale=glocale)
 except:
-    logging.warning(_("Date displayer for '%s' not available, using default") % LANG)
-    displayer = LANG_TO_DISPLAY["C"](val)
+    logging.warning(
+        _("Date displayer for '%s' not available, using default") % LANG)
+    displayer = LANG_TO_DISPLAY["C"](val, blocale=glocale)
 
 
 # Import utility functions
 from ._dateutils import *
-from ._grampslocale import (codeset, tformat)
 
+# set GRAMPS_RESOURCES then: python3 -m gramps.gen.datehandler.__init__
 if __name__ == "__main__":
     from ._datedisplay import DateDisplay
     m = 0
-    for l,d in LANG_TO_DISPLAY.items():
-        if len(l) != 2:
+    date_handlers = sorted(LANG_TO_DISPLAY.items())
+    for l,d in date_handlers:
+        if len(l) != 2 and l not in ('zh_TW'): # Chinese has two date_handlers
             continue
+        if l.upper() == l and (l.lower(),d) in date_handlers:
+            continue # don't need to see the upper-case variant also
         m = max(m, len(d.formats))
-        print("{}: {} {} own dg: {}".format(
+        print("{}: {} {} own-f:{} own-dc:{} own-dg:{}".format(
             l, len(d.formats), d.formats,
+            d.formats != DateDisplay.formats,
+            d._display_calendar != DateDisplay._display_calendar,
             d._display_gregorian != DateDisplay._display_gregorian))
     print("MAX: ", m)

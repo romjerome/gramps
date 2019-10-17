@@ -27,7 +27,7 @@ import random
 
 from gramps.test.test_util import Gramps
 from gramps.gen.const import DATA_DIR
-from gramps.cli.user import User
+from gramps.gen.user import User
 from gramps.gen.utils.id import set_det_id
 from gramps.gen import const
 from gramps.gen.utils.config import config
@@ -39,10 +39,9 @@ const.myrand = random.Random()
 
 def call(*args):
     """ Call Gramps to perform the action with out and err captured """
-    if __debug__:
-        print ("call: %s", args)
-    gramps = Gramps(user=User(auto_accept=True, quiet=True))
-    # gramps = Gramps(user=User(auto_accept=True))
+    #if __debug__:
+        #print ("call: %s", args)
+    gramps = Gramps(user=User())
     out, err = gramps.run(*args)
     # print("out:", out, "err:", err)
     return out, err
@@ -146,8 +145,8 @@ class ToolControl(unittest.TestCase):
                   "1 invalid birth event name was fixed",
                   "1 invalid death event name was fixed",
                   "2 places were referenced, but not found",
-                  "14 citations were referenced, but not found",
-                  "17 sources were referenced, but not found",
+                  "2 citations were referenced, but not found",
+                  "5 sources were referenced, but not found",
                   "9 Duplicated Gramps IDs fixed",
                   "7 empty objects removed",
                   "1 person objects",

@@ -1166,7 +1166,7 @@ class GuiPersonListOption(Gtk.Box):
         self.set_size_request(150, 100)
 
         self.__model = Gtk.ListStore(GObject.TYPE_STRING, GObject.TYPE_STRING)
-        self.__tree_view = Gtk.TreeView(self.__model)
+        self.__tree_view = Gtk.TreeView(model=self.__model)
         col1 = Gtk.TreeViewColumn(_('Name'), Gtk.CellRendererText(), text=0)
         col2 = Gtk.TreeViewColumn(_('ID'), Gtk.CellRendererText(), text=1)
         col1.set_resizable(True)
@@ -1486,6 +1486,10 @@ class GuiSurnameColorOption(Gtk.Box):
         self.__db = dbstate.get_database()
         self.__uistate = uistate
         self.__track = track
+        item = uistate.gwm.get_item_from_track(track)
+        self.__parent = item[0].window if isinstance(item, list) \
+            else item.window
+
         self.set_size_request(150, 150)
 
         # This will get populated the first time the dialog is run,
@@ -1493,7 +1497,7 @@ class GuiSurnameColorOption(Gtk.Box):
         self.__surnames = {}  # list of surnames and count
 
         self.__model = Gtk.ListStore(GObject.TYPE_STRING, GObject.TYPE_STRING)
-        self.__tree_view = Gtk.TreeView(self.__model)
+        self.__tree_view = Gtk.TreeView(model=self.__model)
         self.__tree_view.connect('row-activated', self.__row_clicked)
         col1 = Gtk.TreeViewColumn(_('Surname'), Gtk.CellRendererText(), text=0)
         col2 = Gtk.TreeViewColumn(_('Color'), Gtk.CellRendererText(), text=1)
@@ -1567,7 +1571,8 @@ class GuiSurnameColorOption(Gtk.Box):
         rgba.parse(self.__model.get_value(tree_iter, 1))
 
         title = _('Select color for %s') % surname
-        colour_dialog = Gtk.ColorChooserDialog(title)
+        colour_dialog = Gtk.ColorChooserDialog(title=title,
+                                               transient_for=self.__parent)
         colour_dialog.set_rgba(rgba)
         response = colour_dialog.run()
 

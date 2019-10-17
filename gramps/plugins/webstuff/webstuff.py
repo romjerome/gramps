@@ -139,16 +139,6 @@ def load_on_reg(dbstate, uistate, plugin):
         ["DropDown-Menus", 0, "Drop Down Menus",
          path_css("Web_DropDown-Menus.css"), None, [], [] ],
 
-        # GeoView style sheet with its image
-        ["GeoView", 0, "GeoView",
-         path_css("GeoView.css"), None,
-         [path_img("crosshairs.png"),
-          path_img("gramps-geo-altmap.png"),
-          path_img("gramps-geo-birth.png"),
-          path_img("gramps-geo-death.png"),
-          path_img("gramps-geo-mainmap.png"),
-          path_img("gramps-geo-marriage.png")], []                     ],
-
         # no style sheet option
         ["No style sheet",1, _("No style sheet"),    [],  None, [], [] ],
 
@@ -178,11 +168,12 @@ def load_on_reg(dbstate, uistate, plugin):
          path_img_48x48("gramps-geo-mainmap.png"), None, [], [] ],
         ]
     # If we add css user files, we must restart gramps to use them.
-    list_files = os.listdir(USER_CSS)
-    for cssfile in list_files:
-        CSS_FILES.append([cssfile, 1, cssfile.replace('.css', ''),
-                          os.path.join(USER_CSS,cssfile),
-                          None, [], [] ])
+    if os.path.exists(USER_CSS):
+        list_files = os.listdir(USER_CSS)
+        for cssfile in list_files:
+            CSS_FILES.append([cssfile, 1, cssfile.replace('.css', ''),
+                              os.path.join(USER_CSS,cssfile),
+                              None, [], [] ])
     return CSS_FILES
 
 def process_list(data):

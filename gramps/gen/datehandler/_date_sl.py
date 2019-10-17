@@ -24,7 +24,7 @@
 """
 Slovenian-specific classes for parsing and displaying dates - new framework.
 """
-from __future__ import unicode_literals
+
 #-------------------------------------------------------------------------
 #
 # Python modules
@@ -66,6 +66,7 @@ class DateParserSL(DateParser):
         'ca.'    : Date.MOD_ABOUT,
         'približno' : Date.MOD_ABOUT,
         'pribl.' : Date.MOD_ABOUT,
+        '~'      : Date.MOD_ABOUT,
         }
 
     quality_to_int = {
@@ -120,6 +121,7 @@ class DateDisplaySL(DateDisplay):
 # Register classes
 #
 #-------------------------------------------------------------------------
-register_datehandler(("sl", "SL", "sl_SI", "slovenščina", "slovenian", "Slovenian",
-                 "sl_SI.UTF8", "sl_SI.UTF-8", "sl_SI.utf-8", "sl_SI.utf8"),
-                                    DateParserSL, DateDisplaySL)
+register_datehandler(
+    ("sl_SI", "sl", "SL",
+     "slovenščina", "slovenian", "Slovenian", ('%d. %m. %Y',)),
+    DateParserSL, DateDisplaySL)

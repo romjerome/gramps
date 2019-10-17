@@ -155,7 +155,7 @@ register('behavior.translator-needed', True)
 register('behavior.use-tips', False)
 register('behavior.welcome', 100)
 register('behavior.web-search-url', 'http://google.com/#&q=%(text)s')
-register('behavior.addons-url', "https://raw.githubusercontent.com/gramps-project/addons/master/gramps50")
+register('behavior.addons-url', "https://raw.githubusercontent.com/gramps-project/addons/master/gramps51")
 
 register('database.backend', 'bsddb')
 register('database.compress-backup', True)
@@ -163,6 +163,8 @@ register('database.backup-path', USER_HOME)
 register('database.backup-on-exit', True)
 register('database.autobackup', 0)
 register('database.path', os.path.join(HOME_DIR, 'grampsdb'))
+register('database.host', '')
+register('database.port', '')
 
 register('export.proxy-order',
          [["privacy", 0],
@@ -226,6 +228,8 @@ register('paths.report-directory', USER_HOME)
 register('paths.website-directory', USER_HOME)
 register('paths.website-cms-uri', '')
 register('paths.website-cal-uri', '')
+register('paths.website-extra-page-uri', '')
+register('paths.website-extra-page-name', '')
 register('paths.quick-backup-directory', USER_HOME)
 register('paths.quick-backup-filename',
          "%(filename)s_%(year)d-%(month)02d-%(day)02d.%(extension)s")

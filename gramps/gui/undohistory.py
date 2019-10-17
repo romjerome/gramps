@@ -54,7 +54,7 @@ from gramps.gen.const import URL_MANUAL_PAGE
 #
 #-------------------------------------------------------------------------
 WIKI_HELP_PAGE = '%s_-_Keybindings' % URL_MANUAL_PAGE
-WIKI_HELP_SEC = _('11')
+WIKI_HELP_SEC = '11'
 
 #-------------------------------------------------------------------------
 #
@@ -76,8 +76,8 @@ class UndoHistory(ManagedWindow):
         self.undodb = self.db.undodb
         self.dbstate = dbstate
 
-        window = Gtk.Dialog("", uistate.window,
-                            Gtk.DialogFlags.DESTROY_WITH_PARENT, None)
+        window = Gtk.Dialog(title="", transient_for=uistate.window,
+                            destroy_with_parent=True)
 
         self.help_button = window.add_button(_('_Help'),
                                              Gtk.ResponseType.HELP)
@@ -120,10 +120,11 @@ class UndoHistory(ManagedWindow):
         scrolled_window.add(self.tree)
         self.window.vbox.pack_start(scrolled_window, True, True, 0)
 
+        self.sel_chng_hndlr = self.selection.connect('changed',
+                                                     self._selection_changed)
         self._build_model()
         self._update_ui()
 
-        self.selection.connect('changed', self._selection_changed)
         self.show()
 
     def _selection_changed(self, obj):
@@ -226,6 +227,7 @@ class UndoHistory(ManagedWindow):
             )
 
     def _build_model(self):
+        self.selection.handler_block(self.sel_chng_hndlr)
         self.model.clear()
         fg = bg = None
 
@@ -243,6 +245,7 @@ class UndoHistory(ManagedWindow):
             mod_text = txn.get_description()
             self.model.append(row=[time_text, mod_text, fg, bg])
         path = (self.undodb.undo_count,)
+        self.selection.handler_unblock(self.sel_chng_hndlr)
         self.selection.select_path(path)
 
     def update(self):

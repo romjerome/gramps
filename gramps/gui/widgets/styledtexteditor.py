@@ -60,7 +60,7 @@ from .toolcomboentry import ToolComboEntry
 from .springseparator import SpringSeparatorAction
 from ..spell import Spell
 from ..display import display_url
-from ..utils import SystemFonts, rgb_to_hex
+from ..utils import SystemFonts, rgb_to_hex, get_primary_mask
 from gramps.gen.config import config
 from gramps.gen.constfunc import has_display
 from ..actiongroup import ActionGroup
@@ -81,10 +81,10 @@ FORMAT_TOOLBAR = '''
   <toolitem action="%d"/>
   <toolitem action="%d"/>
   <toolitem action="%d"/>
+  <toolitem action="%d"/>
+  <toolitem action="%d"/>
   <toolitem action="Undo"/>
   <toolitem action="Redo"/>
-  <toolitem action="%d"/>
-  <toolitem action="%d"/>
   <toolitem action="%d"/>
   <toolitem action="%d"/>
   <toolitem action="%d"/>
@@ -247,12 +247,12 @@ class StyledTextEditor(Gtk.TextView):
 
         """
         if ((Gdk.keyval_name(event.keyval) == 'Z') and
-            (event.get_state() & Gdk.ModifierType.CONTROL_MASK) and
-            (event.get_state() & Gdk.ModifierType.SHIFT_MASK)):
+            (event.get_state() &
+             get_primary_mask(Gdk.ModifierType.SHIFT_MASK))):
             self.redo()
             return True
         elif ((Gdk.keyval_name(event.keyval) == 'z') and
-              (event.get_state() & Gdk.ModifierType.CONTROL_MASK)):
+              (event.get_state() & get_primary_mask())):
             self.undo()
             return True
         else:
@@ -343,9 +343,9 @@ class StyledTextEditor(Gtk.TextView):
         """
         self.selclick=False
         if ((event.type == Gdk.EventType.BUTTON_PRESS) and
-            (event.button == 1) and
-            (event.get_state() and Gdk.ModifierType.CONTROL_MASK) and
-            (self.url_match)):
+            (event.button == 1) and (self.url_match) and
+            ((event.get_state() & get_primary_mask()) or
+             not self.get_editable())):
 
             flavor = self.url_match[MATCH_FLAVOR]
             url = self.url_match[MATCH_STRING]
@@ -392,7 +392,7 @@ class StyledTextEditor(Gtk.TextView):
                 copy_menu = Gtk.MenuItem(label=_('Copy _Link Address'))
                 copy_menu.set_use_underline(True)
 
-            if flavor == LINK:
+            if flavor == LINK and self.get_editable():
                 edit_menu = Gtk.MenuItem(label=_('_Edit Link'))
                 edit_menu.set_use_underline(True)
                 edit_menu.connect('activate', self._edit_url_cb,
@@ -464,13 +464,14 @@ class StyledTextEditor(Gtk.TextView):
 
         # ...then the normal actions, which have a ToolButton as proxy
         format_actions = [
-            (str(StyledTextTagType.FONTCOLOR), 'gramps-font-color', None, None,
-             _('Font Color'), self._on_action_activate),
-            (str(StyledTextTagType.HIGHLIGHT), 'gramps-font-bgcolor', None,
-            None, _('Background Color'), self._on_action_activate),
-            (str(StyledTextTagType.LINK), 'go-jump', None, None,
+            (str(StyledTextTagType.FONTCOLOR), 'gramps-font-color',
+             _('Font Color'), None, _('Font Color'), self._on_action_activate),
+            (str(StyledTextTagType.HIGHLIGHT), 'gramps-font-bgcolor',
+             _('Background Color'), None, _('Background Color'),
+             self._on_action_activate),
+            (str(StyledTextTagType.LINK), 'go-jump', _('Link'), None,
              _('Link'), self._on_link_activate),
-            ('clear', 'edit-clear', None, None,
+            ('clear', 'edit-clear', _('Clear Markup'), None,
              _('Clear Markup'), self._format_clear_cb),
         ]
 
@@ -539,6 +540,9 @@ class StyledTextEditor(Gtk.TextView):
         self.redo_action.set_sensitive(False)
 
         return toolbar
+
+    def set_transient_parent(self, parent=None):
+        self.transient_parent = parent
 
     def _init_url_match(self):
         """Setup regexp matching for URL match."""
@@ -639,9 +643,13 @@ class StyledTextEditor(Gtk.TextView):
         current_value = self.textbuffer.get_style_at_cursor(style)
 
         if style == StyledTextTagType.FONTCOLOR:
-            color_dialog = Gtk.ColorChooserDialog(_("Select font color"))
+            color_dialog = Gtk.ColorChooserDialog(
+                title=_("Select font color"),
+                transient_for=self.transient_parent)
         elif style == StyledTextTagType.HIGHLIGHT:
-            color_dialog = Gtk.ColorChooserDialog(_("Select background color"))
+            color_dialog = Gtk.ColorChooserDialog(
+                title=_("Select background color"),
+                transient_for=self.transient_parent)
         else:
             _LOG.debug("unknown style: '%d'" % style)
             return

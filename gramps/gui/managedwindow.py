@@ -196,10 +196,14 @@ class GrampsWindowManager:
 
     def close_item(self, item, *args):
         # Given an item, close its window and remove it's ID from the dict
+        if item.opened:
+            item.close()
         if item.window_id:
             del self.id2item[item.window_id]
+            item.window_id = None
         if item.get_window():
             item.get_window().destroy()
+            item.window = None
 
     def remove_item(self, track):
         # We need the whole gymnastics below because our item
@@ -518,11 +522,11 @@ class ManagedWindow:
     def build_window_key(self, obj):
         return id(obj)
 
-    def define_glade(self, top_module, glade_file=None):
+    def define_glade(self, top_module, glade_file=None, also_load=[]):
         if glade_file is None:
             raise TypeError("ManagedWindow.define_glade: no glade file")
             glade_file = GLADE_FILE
-        self._gladeobj = Glade(glade_file, None, top_module)
+        self._gladeobj = Glade(glade_file, None, top_module, also_load)
         return self._gladeobj
 
     def get_widget(self, name):
@@ -560,11 +564,11 @@ class ManagedWindow:
 
         Takes care of closing children and removing itself from menu.
         """
-        self._save_position(save_config=False) # the next line will save it
+        self.opened = False
+        self._save_position(save_config=False)  # the next line will save it
         self._save_size()
         self.clean_up()
         self.uistate.gwm.close_track(self.track)
-        self.opened = False
         # put a previously modal window back to modal, now that we are closing
         if self.other_modal_window:
             self.other_modal_window.set_modal(True)

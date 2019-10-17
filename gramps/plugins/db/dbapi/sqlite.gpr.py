@@ -1,7 +1,7 @@
 #
 # Gramps - a GTK+/GNOME based genealogy program
 #
-# Copyright (C) 2016 Douglas Blank <doug.blank@gmail.com>
+# Copyright (C) 2015 Douglas Blank <doug.blank@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,15 +22,15 @@ from gramps.gen.const import GRAMPS_LOCALE as glocale
 _ = glocale.translation.gettext
 
 register(DATABASE,
-         id    = 'inmemorydb',
-         name  = _("In-Memory"),
-         name_accell  = _("In-_Memory Database"),
-         description =  _("In-Memory Database"),
-         version = '1.0.0',
-         gramps_target_version = "5.0",
-         status = STABLE,
-         fname = 'inmemorydb.py',
-         databaseclass = 'InMemoryDB',
+         id='sqlite',
+         name=_('SQLite'),
+         name_accell=_('_SQLite Database'),
+         description=_('SQLite Database'),
+         version='1.0.0',
+         gramps_target_version='5.1',
+         status=STABLE,
+         fname='sqlite.py',
+         databaseclass='SQLite',
          authors=['Doug Blank'],
-         authors_email=["doug.blank@gmail.com"],
+         authors_email=['doug.blank@gmail.com']
 )

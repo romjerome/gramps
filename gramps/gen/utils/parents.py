@@ -47,6 +47,8 @@ def parents(db, family, xlocale):
     """
     if family.get_father_handle(): #[0]
         father = db.get_person_from_handle(family.get_father_handle())
+        if father.gender == Person.UNKNOWN:
+            return [_T_("Unknown"), _T_("Person")]
         if family.get_mother_handle():
             mother = db.get_person_from_handle(family.get_mother_handle())
         else:
@@ -57,6 +59,8 @@ def parents(db, family, xlocale):
     else:
         if family.get_mother_handle(): #[1]
             mother = db.get_person_from_handle(family.get_mother_handle())
+            if mother.gender == Person.UNKNOWN:
+                return [_T_("Person"), _T_("Unknown")]
             if mother.gender == Person.MALE:
                 return [_T_("Person"), _T_("Man")]
         else:

@@ -1107,7 +1107,7 @@ class TestcaseGenerator(tool.BatchTool):
             self.transaction_count += 1
 
             c_h = "unknowncitationhandle"
-            self.create_all_possible_citations([c_h, None], "Broken22",
+            self.create_all_possible_citations([c_h, ''], "Broken22",
                                                'non-existent citation')
 
     def create_all_possible_citations(self, c_h_list, name, message):
@@ -1998,7 +1998,8 @@ class TestcaseGenerator(tool.BatchTool):
             # if _randint(0, 1) == 1:
             #    (year, dat) = self.rand_date( )
             #    obj.set_date_object( dat)
-            obj.set_confidence_level(_choice(list(conf_strings.keys())))
+            # sort to provide deterministic output in unit tests
+            obj.set_confidence_level(_choice(sorted(conf_strings.keys())))
 
         if issubclass(obj.__class__, TagBase):
             if _randint(0, 1) == 1:
@@ -2053,7 +2054,8 @@ class TestcaseGenerator(tool.BatchTool):
     def rand_type(self, gtype):
         if issubclass(gtype.__class__, GrampsType):
             gmap = gtype.get_map()
-            key = _choice(list(gmap.keys()))
+            # sort to provide deterministic output in unit tests
+            key = _choice(sorted(gmap.keys()))
             if key == gtype.get_custom():
                 value = self.rand_text(self.SHORT)
             else:

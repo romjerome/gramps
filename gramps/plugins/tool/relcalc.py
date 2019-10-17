@@ -118,7 +118,7 @@ class RelCalc(tool.Tool, ManagedWindow):
         self.textbuffer = Gtk.TextBuffer()
         self.text.set_buffer(self.textbuffer)
 
-        self.model = PersonTreeModel(self.db)
+        self.model = PersonTreeModel(self.db, uistate)
         self.tree.set_model(self.model)
 
         self.tree.connect('key-press-event', self._key_press)
@@ -232,6 +232,7 @@ class RelCalc(tool.Tool, ManagedWindow):
                 for person_handle in common:
                     person = self.db.get_person_from_handle(person_handle)
                     if index:
+                        # TODO for Arabic, should the next comma be translated?
                         commontext += ", "
                     commontext += name_displayer.display(person)
                     index += 1

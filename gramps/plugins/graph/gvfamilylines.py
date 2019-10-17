@@ -156,12 +156,7 @@ class FamilyLinesOptions(MenuReportOptions):
             _("Use rounded corners to differentiate between women and men."))
         add_option("useroundedcorners", roundedcorners)
 
-        include_id = EnumeratedListOption(_('Gramps ID'), 0)
-        include_id.add_item(0, _('Do not include'))
-        include_id.add_item(1, _('Share an existing line'))
-        include_id.add_item(2, _('On a line of its own'))
-        include_id.set_help(_("Whether (and where) to include Gramps IDs"))
-        add_option("incid", include_id)
+        stdoptions.add_gramps_id_option(menu, category_name, ownline=True)
 
         # ---------------------
         category_name = _('Report Options (2)')
@@ -174,7 +169,9 @@ class FamilyLinesOptions(MenuReportOptions):
 
         stdoptions.add_living_people_option(menu, category_name)
 
-        stdoptions.add_localization_option(menu, category_name)
+        locale_opt = stdoptions.add_localization_option(menu, category_name)
+
+        stdoptions.add_date_format_option(menu, category_name, locale_opt)
 
         # --------------------------------
         add_option = partial(menu.add_option, _('People of Interest'))
@@ -334,7 +331,7 @@ class FamilyLinesReport(Report):
         user         - a gen.user.User() instance
         name_format  - Preferred format to display names
         incl_private - Whether to include private data
-        incid        - Whether to include IDs.
+        inc_id       - Whether to include IDs.
         living_people - How to handle living people
         years_past_death - Consider as living this many years after death
         """
@@ -344,8 +341,9 @@ class FamilyLinesReport(Report):
         get_option_by_name = menu.get_option_by_name
         get_value = lambda name: get_option_by_name(name).get_value()
 
-        lang = menu.get_option_by_name('trans').get_value()
-        self._locale = self.set_locale(lang)
+        self.set_locale(menu.get_option_by_name('trans').get_value())
+
+        stdoptions.run_date_format_option(self, menu)
 
         stdoptions.run_private_data_option(self, menu)
         stdoptions.run_living_people_option(self, menu, self._locale)
@@ -380,7 +378,7 @@ class FamilyLinesReport(Report):
         self._just_years = get_value('justyears')
         self._incplaces = get_value('incplaces')
         self._incchildcount = get_value('incchildcnt')
-        self.includeid = get_value('incid')
+        self.includeid = get_value('inc_id')
 
         arrow_str = get_value('arrow')
         if 'd' in arrow_str:
@@ -869,7 +867,8 @@ class FamilyLinesReport(Report):
                 label += '<TD>'
 
             # at the very least, the label must have the person's name
-            label += name
+            name = name.replace('"', '&#34;')
+            label += name.replace('<', '&#60;').replace('>', '&#62;')
             if self.includeid == 1: # same line
                 label += " (%s)" % p_id
             elif self.includeid == 2: # own line
@@ -897,6 +896,9 @@ class FamilyLinesReport(Report):
             # see if we have a table that needs to be terminated
             if image_path:
                 label += '</TD></TR></TABLE>'
+            else:
+                # non html label is enclosed by "" so escape other "
+                label = label.replace('"', '\\\"')
 
             shape = "box"
             style = "solid"
@@ -1096,4 +1098,6 @@ class FamilyLinesReport(Report):
                     place_text = location.get(PlaceType.STATE)
                 elif location.get(PlaceType.COUNTRY):
                     place_text = location.get(PlaceType.COUNTRY)
+                place_text = place_text.replace('<', '&#60;')
+                place_text = place_text.replace('>', '&#62;')
         return place_text

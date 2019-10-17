@@ -209,7 +209,7 @@ class ListView(NavigationView):
         self.edit_action.add_actions([
                 ('Add', 'list-add', _("_Add..."), "<PRIMARY>Insert",
                     self.ADD_MSG, self.add),
-                ('Remove', 'list-remove', _("_Remove"), "<PRIMARY>Delete",
+                ('Remove', 'list-remove', _("_Delete"), "<PRIMARY>Delete",
                     self.DEL_MSG, self.remove),
                 ('Merge', 'gramps-merge', _('_Merge...'), None,
                     self.MERGE_MSG, self.merge),
@@ -808,11 +808,9 @@ class ListView(NavigationView):
             self.build_tree()
             # Reselect one, if it still exists after rebuild:
             nav_type = self.navigation_type()
-            lookup_handle = self.dbstate.db.get_table_metadata(nav_type)['handle_func']
+            lookup_handle = self.dbstate.db.method('get_%s_from_handle', nav_type)
             for handle in selected_ids:
                 # Still exist?
-                # should really use db.has_handle(nav_type, handle) but doesn't
-                # exist for bsddb
                 try:
                     lookup_handle(handle)
                     # Select it, and stop selecting:
@@ -907,7 +905,7 @@ class ListView(NavigationView):
             self.edit(obj)
             return True
         # Custom interactive search
-        if event.string:
+        if Gdk.keyval_to_unicode(event.keyval):
             return self.searchbox.treeview_keypress(obj, event)
         return False
 
@@ -935,7 +933,7 @@ class ListView(NavigationView):
                     else:
                         self.edit(obj)
                         return True
-        elif event.string:
+        elif Gdk.keyval_to_unicode(event.keyval):
             # Custom interactive search
             return self.searchbox.treeview_keypress(obj, event)
         return False

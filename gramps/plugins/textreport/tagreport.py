@@ -83,11 +83,13 @@ class TagReport(Report):
         Report.__init__(self, database, options, user)
         menu = options.menu
 
-        lang = menu.get_option_by_name('trans').get_value()
-        rlocale = self.set_locale(lang)
+        self.set_locale(menu.get_option_by_name('trans').get_value())
+
+        stdoptions.run_date_format_option(self, menu)
 
         stdoptions.run_private_data_option(self, menu)
-        living_opt = stdoptions.run_living_people_option(self, menu, rlocale)
+        living_opt = stdoptions.run_living_people_option(self, menu,
+                                                         self._locale)
         self.database = CacheProxyDb(self.database)
 
         self._lv = menu.get_option_by_name('living_people').get_value()
@@ -540,7 +542,8 @@ class TagReport(Report):
 
     def write_media(self):
         """ write the media associated with the tag """
-        mlist = self.database.get_media_handles(sort_handles=True)
+        mlist = self.database.get_media_handles(sort_handles=True,
+                                                locale=self._locale)
         filter_class = GenericFilterFactory('Media')
         a_filter = filter_class()
         a_filter.add_rule(rules.media.HasTag([self.tag]))
@@ -709,7 +712,8 @@ class TagReport(Report):
 
     def write_sources(self):
         """ write the sources associated with the tag """
-        slist = self.database.get_source_handles(sort_handles=True)
+        slist = self.database.get_source_handles(sort_handles=True,
+                                                 locale=self._locale)
         filter_class = GenericFilterFactory('Source')
         a_filter = filter_class()
         a_filter.add_rule(rules.source.HasTag([self.tag]))
@@ -789,7 +793,8 @@ class TagReport(Report):
 
     def write_citations(self):
         """ write the citations associated with the tag """
-        clist = self.database.get_citation_handles(sort_handles=True)
+        clist = self.database.get_citation_handles(sort_handles=True,
+                                                   locale=self._locale)
         filter_class = GenericFilterFactory('Citation')
         a_filter = filter_class()
         a_filter.add_rule(rules.citation.HasTag([self.tag]))
@@ -915,7 +920,9 @@ class TagOptions(MenuReportOptions):
 
         stdoptions.add_living_people_option(menu, category_name)
 
-        stdoptions.add_localization_option(menu, category_name)
+        locale_opt = stdoptions.add_localization_option(menu, category_name)
+
+        stdoptions.add_date_format_option(menu, category_name, locale_opt)
 
     def make_default_style(self, default_style):
         """Make the default output style for the Tag Report."""
@@ -930,7 +937,7 @@ class TagOptions(MenuReportOptions):
         para.set_bottom_margin(utils.pt2cm(3))
         para.set_font(font)
         para.set_alignment(PARA_ALIGN_CENTER)
-        para.set_description(_("The style used for the title of the page."))
+        para.set_description(_("The style used for the title."))
         default_style.add_paragraph_style("TR-Title", para)
 
         font = FontStyle()

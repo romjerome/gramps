@@ -3,6 +3,7 @@
 # Gramps - a GTK+/GNOME based genealogy program
 #
 # Copyright (C) 2004-2006  Donald N. Allingham
+# Copyright (C) 2017       Paul Franklin
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,7 +47,7 @@ log = logging.getLogger(".DateParser")
 #
 #-------------------------------------------------------------------------
 from ..lib.date import Date, DateError, Today
-from . import _grampslocale
+from ..const import GRAMPS_LOCALE as glocale
 from ..utils.grampslocale import GrampsLocale
 from ._datestrings import DateStrings
 
@@ -192,10 +193,7 @@ class DateParser:
     converted, the text string is assigned.
     """
 
-    _locale = GrampsLocale(lang='en', languages='en')
-
-    fmt = _grampslocale.tformat
-    _fmt_parse = re.compile(".*%(\S).*%(\S).*%(\S).*")
+    _dhformat_parse = re.compile(".*%(\S).*%(\S).*%(\S).*")
 
     # RFC-2822 only uses capitalized English abbreviated names, no locales.
     _rfc_days = ('Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat')
@@ -315,7 +313,7 @@ class DateParser:
             return
         else:
             DateParser._langs.add(lang)
-        ds = DateStrings(self._locale)
+        ds = self._ds = DateStrings(self._locale)
         log.debug("Begin building parser prefix tables for {}".format(lang))
         _build_prefix_table(DateParser.month_to_int,
             _generate_variants(
@@ -332,7 +330,21 @@ class DateParser:
         _build_prefix_table(DateParser.calendar_to_int,
                 _generate_variants(zip(ds.calendar)))
 
-    def __init__(self):
+    def __init__(self, plocale=None):
+        """
+        :param plocale: allow correct date format to be loaded and parsed
+        :type plocale: a :class:`.GrampsLocale` instance
+        """
+        from ._datehandler import locale_tformat # circular import if above
+        if plocale:
+            self._locale = plocale
+        elif not hasattr(self, '_locale'):
+            self._locale = glocale
+        if self._locale.calendar in locale_tformat:
+            self.dhformat = locale_tformat[self._locale.calendar] # date format
+        else:
+            self.dhformat = locale_tformat['en_GB'] # something is required
+        self.dhformat_changed() # Allow overriding so a subclass can modify it
         self.init_strings()
         self.parser = {
             Date.CAL_GREGORIAN : self._parse_gregorian,
@@ -344,16 +356,24 @@ class DateParser:
             Date.CAL_SWEDISH   : self._parse_swedish,
             }
 
-        match = self._fmt_parse.match(self.fmt.lower())
+        match = self._dhformat_parse.match(self.dhformat.lower())
         if match:
-            self.dmy = (match.groups() == ('d', 'm', 'y') or \
-                       match.groups() == ('d', 'b', 'y'))
+            self._ddmy = match.groups() == ('a', 'e', 'b', 'y') # Icelandic
+            self.dmy = (match.groups() == ('d', 'm', 'y') or
+                        match.groups() == ('e', 'm', 'y') or # Bulgarian
+                        match.groups() == ('d', 'b', 'y') or
+                        match.groups() == ('a', 'e', 'b', 'y'))
             self.ymd = (match.groups() == ('y', 'm', 'd') or \
                        match.groups() == ('y', 'b', 'd'))
             # note ('m','d','y') is valid -- in which case both will be False
         else:
             self.dmy = True
             self.ymd = False
+            self._ddmy = False
+
+    def dhformat_changed(self):
+        """ Allow overriding so a subclass can modify it """
+        pass
 
     def re_longest_first(self, keys):
         """
@@ -371,7 +391,7 @@ class DateParser:
         Most of the re's in most languages can stay as is. span and range
         most likely will need to change. Whatever change is done, this method
         may be called first as DateParser.init_strings(self) so that the
-        invariant expresions don't need to be repeteadly coded. All differences
+        invariant expresions don't need to be repeatedly coded. All differences
         can be coded after DateParser.init_strings(self) call, that way they
         override stuff from this method.
 
@@ -429,8 +449,9 @@ class DateParser:
         self._modifier_after = re.compile('(.*)\s+%s' % self._mod_after_str,
                                           re.IGNORECASE)
         self._abt2     = re.compile('<(.*)>', re.IGNORECASE)
-        self._text     = re.compile('%s\.?\s+(\d+)?\s*,?\s*((\d+)(/\d+)?)?\s*$' % self._mon_str,
-                                    re.IGNORECASE)
+        self._text     = re.compile('%s\.?(\s+\d+)?\s*,?\s+((\d+)(/\d+)?)?\s*$'
+                                        % self._mon_str, re.IGNORECASE)
+        # this next RE has the (possibly-slashed) year at the string's end
         self._text2    = re.compile('(\d+)?\s+?%s\.?\s*((\d+)(/\d+)?)?\s*$' % self._mon_str,
                                     re.IGNORECASE)
         self._jtext    = re.compile('%s\s+(\d+)?\s*,?\s*((\d+)(/\d+)?)?\s*$' % self._jmon_str,
@@ -501,7 +522,7 @@ class DateParser:
 
     def _parse_calendar(self, text, regex1, regex2, mmap, check=None):
         match = regex1.match(text.lower())
-        if match:
+        if match: # user typed in 'month-name day year' or 'month-name year'
             groups = match.groups()
             if groups[0] is None:
                 m = 0
@@ -514,19 +535,21 @@ class DateParser:
                 s = False
             else:
                 d = self._get_int(groups[1])
-                if groups[4] is not None: # slash year "/80"
+                if groups[4] is not None:
                     y = int(groups[3]) + 1 # fullyear + 1
-                    s = True
-                else: # regular, non-slash date
+                    s = True # slash year
+                else: # regular year
                     y = int(groups[3])
                     s = False
             value = (d, m, y, s)
-            if check and not check((d, m, y)):
+            if s and julian_valid(value): # slash year
+                pass
+            elif check and not check((d, m, y)):
                 value = Date.EMPTY
             return value
 
         match = regex2.match(text.lower())
-        if match:
+        if match: # user typed in day month-name year or year month-name day
             groups = match.groups()
             if self.ymd:
                 if groups[3] is None:
@@ -538,10 +561,10 @@ class DateParser:
                     y = None
                     s = False
                 else:
-                    if groups[2] is not None: # slash year digit
+                    if groups[2] is not None:
                         y = int(groups[1]) + 1 # fullyear + 1
-                        s = True
-                    else: # regular, non-slash year
+                        s = True # slash year
+                    else: # regular year
                         y = int(groups[1])
                         s = False
             else:
@@ -554,10 +577,10 @@ class DateParser:
                     y = None
                     s = False
                 else:
-                    if groups[4] is not None: # slash year digit
+                    if groups[4] is not None:
                         y = int(groups[3]) + 1 # fullyear + 1
-                        s = True
-                    else: # regular, non-slash year
+                        s = True # slash year
+                    else: # regular year
                         y = int(groups[3])
                         s = False
             value = (d, m, y, s)
@@ -591,18 +614,18 @@ class DateParser:
         value = subparser(text)
         if value != Date.EMPTY:
             return value
+
         match = self._iso.match(text)
         if match:
             groups = match.groups()
             y = self._get_int(groups[0])
             m = self._get_int(groups[3])
             d = self._get_int(groups[4])
-            if check and not check((d, m, y)):
-                return Date.EMPTY
-            if groups[2]: # slash year digit
-                return (d, m, y + 1, True)
-            else:
+            if groups[2] and julian_valid((d, m, y + 1)):
+                return (d, m, y + 1, True) # slash year
+            if check is None or check((d, m, y)):
                 return (d, m, y, False)
+            return Date.EMPTY
 
         # Database datetime format, used in ex. MSSQL
         # YYYYMMDD HH:MM:SS or YYYYMMDD or YYYYMMDDHHMMSS
@@ -633,6 +656,8 @@ class DateParser:
             groups = match.groups()
             if groups == (None, None, None, None, None):
                 return Date.EMPTY
+            if self._ddmy: # Icelandic
+                groups = groups[1:] # ignore the day of the week at the start
             if self.ymd:
                 # '1789' and ymd: incomplete date
                 if groups[1] is None:
@@ -647,6 +672,15 @@ class DateParser:
                     y = self._get_int(groups[1])
                     m = self._get_int(groups[3])
                     d = self._get_int(groups[4])
+                if m > 12: # maybe a slash year, not a month (1722/3 is March)
+                    if y % 100 == 99:
+                        modyear = (y + 1) % 1000
+                    elif y % 10 == 9:
+                        modyear = (y + 1) % 100
+                    else:
+                        modyear = (y + 1) % 10
+                    if m == modyear:
+                        return (0, 0, y + 1, True) # slash year
             else:
                 y = self._get_int(groups[4])
                 if self.dmy:
@@ -659,6 +693,15 @@ class DateParser:
                 else:
                     m = self._get_int(groups[1])
                     d = self._get_int(groups[3])
+                if m > 12: # maybe a slash year, not a month
+                    if m % 100 == 99:
+                        modyear = (m + 1) % 1000
+                    elif m % 10 == 9:
+                        modyear = (m + 1) % 100
+                    else:
+                        modyear = (m + 1) % 10
+                    if y == modyear:
+                        return (0, 0, m + 1, True) # slash year
             value = (d, m, y, False)
             if check and not check((d, m, y)):
                 value = Date.EMPTY
@@ -884,8 +927,6 @@ class DateParser:
             if subdate == Date.EMPTY and text != "":
                 date.set_as_text(text)
                 return
-            #else:
-            #    print 'valid subdate', text, subdate
         except:
             date.set_as_text(text)
             return

@@ -99,7 +99,7 @@ class SourceModel(FlatBaseModel):
         return len(self.fmap)+1
 
     def column_title(self,data):
-        return data[2]
+        return data[2].replace('\n', ' ')
 
     def column_author(self,data):
         return data[3]
@@ -161,4 +161,5 @@ class SourceModel(FlatBaseModel):
         Return the sorted list of tags.
         """
         tag_list = list(map(self.get_tag_name, data[11]))
+        # TODO for Arabic, should the next line's comma be translated?
         return ', '.join(sorted(tag_list, key=glocale.sort_key))

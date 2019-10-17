@@ -77,6 +77,17 @@ def gramps_upgrade_pickle(self):
     with BSDDBTxn(self.env, self.metadata) as txn:
         txn.put(b'upgraded', 'Yes')
 
+def gramps_upgrade_19(self):
+    """
+    Upgrade database from version 18 to 19.
+    """
+    default_handle = self.metadata.get(b'default')
+    with BSDDBTxn(self.env, self.metadata) as txn:
+        if isinstance(default_handle, bytes):
+            default_handle = default_handle.decode('utf-8')
+            txn.put(b'default', default_handle)
+        txn.put(b'version', 19)
+
 def gramps_upgrade_18(self):
     """
     Upgrade database from version 17 to 18.
@@ -190,6 +201,7 @@ def gramps_upgrade_17(self):
             n -= 1
         while n > level:
             if loc[n]:
+                # TODO for Arabic, should the next line's comma be translated?
                 title = ', '.join([item for item in loc[n:] if item])
                 parent_handle = add_place(self, loc[n], n, parent_handle, title)
                 locations[tuple([''] * n + loc[n:])] = parent_handle
